@@ -21,6 +21,27 @@
         "Hagel (TBL)",
         "Hyman (EDM)"
       ]
+    },
+    {
+      "name": "Jarmo",
+      "goalies": [
+        "Lyon (BUF)",
+        "Oettinger (DAL)"
+      ],
+      "defenders": [
+        "Matthew Schaefer (NYI)",
+        "Moritz Seider (DET)",
+        "Raddysh (TBL)",
+        "Tony DeAngelo (NYI)"
+      ],
+      "forwards": [
+        "Celebrini (SJS)",
+        "Johnston (DAL)",
+        "Robert Thomas (STL)",
+        "Point (TBL)",
+        "Keller (UTA)",
+        "Dylan Holloway (STL)"
+      ]
     }
   ]
 }

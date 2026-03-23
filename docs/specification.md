@@ -584,3 +584,8 @@ Suositeltu raportointi:
     - Esikatselutila sammuu automaattisesti kun `enabled` asetetaan arvoon `true` — koodimuutosta ei tarvita
     - Lisätty `readPeriod1RostersRaw()` helper-funktio, joka erottaa preview-logiikan loadTemporaryPeriod1Rosters()-funktiosta
     - Poistettu `tipsen.js`:sta ennenaikainen "Ingen Excel-fil hittades" -virhe, koska preview ei tarvitse Excel-tiedostoa
+  - **Passi 1: JSON-only datalähde standings-laskentaan:**
+    - `/api/players-stats-compare` ei enää lue pelaajalistaa Excelistä, vaan käyttää aktiivista temporary-roster-lähdettä (`period3` ensisijainen, fallback `period1`)
+    - Lisätty helperit `resolveActiveTemporaryRosterSource()`, `loadEnabledTemporaryPeriod3RostersRaw()` ja `loadEnabledTemporaryPeriod1RostersRaw()`
+    - `/api/tipsen-summary` ei enää käytä Excel-fallbackia osallistujarostereihin, vaan rakentaa osallistujasarakkeet JSON-rosterista (`buildTemporaryParticipantColumns()`)
+    - Tipsen-summaryn cache-avain käyttää roster-version avainta (`sourceKey`), jolloin rosterimuutokset invalidoivat cachea ilman Excel-riippuvuutta
