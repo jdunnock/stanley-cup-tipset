@@ -197,7 +197,7 @@ function updateSectionTitles(compareDate) {
   const periodThree = isPeriodThreeActive(compareDate);
 
   if (periodTitleEl) {
-    periodTitleEl.textContent = periodThree ? "Ställning Period 3" : "Slutställning Period 2";
+    periodTitleEl.textContent = periodThree ? "Ställning Stanley Cup" : "Slutställning Period 2";
   }
 
   if (totalTitleEl) {

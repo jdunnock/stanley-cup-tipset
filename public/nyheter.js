@@ -352,17 +352,17 @@ function buildNyheterDataFromSnapshots(snapshots, options = {}) {
   const modeParticipantImpacts = weeklyMode ? weeklyContext.weeklyParticipantImpacts : participantImpactsPeriod;
   const modeBottomSub = weeklyMode
     ? isPeriodThreeActive
-      ? "Veckoläget: bottenstriden lever i period 3"
-      : "Veckoläget: bottenstriden lever inför period 3-starten"
+      ? "Veckoläget: bottenstriden lever i Stanley Cup"
+      : "Veckoläget: bottenstriden lever inför Stanley Cup-starten"
     : "Bottenstriden lever in i sista omgången av period 2";
   const modeLeadSummary = weeklyMode
     ? `${leader.name} toppar fortfarande totalen, men veckans svängningar var tydliga bakom ledaren. ` +
       "Det här utskicket bygger på förändringen mellan två snapshots under veckan."
     : isPeriodThreeActive
       ? `${leader.name} leder fortsatt tabellen, men jakten är intensiv bakom med små marginaler mellan plats 2-4. ` +
-        "Senaste snapshoten visar att toppspelarna driver stora svängningar och att skadeläget fortfarande kan avgöra fortsättningen i period 3."
+            "Senaste snapshoten visar att toppspelarna driver stora svängningar och att skadeläget fortfarande kan avgöra fortsättningen i Stanley Cup."
       : `${leader.name} leder fortsatt tabellen, men jakten är intensiv bakom med små marginaler mellan plats 2-4. ` +
-        "Senaste snapshoten visar att toppspelarna driver stora svängningar och att skadeläget fortfarande kan avgöra slutspurten. I morgon startar period 3.";
+            "Senaste snapshoten visar att toppspelarna driver stora svängningar och att skadeläget fortfarande kan avgöra slutspurten. I morgon startar Stanley Cup.";
 
   return {
     mode: weeklyMode ? NYHETER_MODE_WEEKLY : NYHETER_MODE_PERIOD,
@@ -591,7 +591,7 @@ function renderModeLabels() {
     risersTitle.textContent = isWeekly
       ? "🚀 Veckans raketer"
       : isPeriodThree
-        ? "🚀 Raketer (period 3 totalt)"
+                ? "🚀 Raketer (Stanley Cup totalt)"
         : "🚀 Raketer (period 2 totalt)";
   }
 
@@ -599,12 +599,12 @@ function renderModeLabels() {
     fallersTitle.textContent = isWeekly
       ? "🐢 Veckans långsammaste klättrare"
       : isPeriodThree
-        ? "🐢 Långsammaste klättrare (period 3 totalt)"
+                ? "🐢 Långsammaste klättrare (Stanley Cup totalt)"
         : "🐢 Långsammaste klättrare (period 2 totalt)";
   }
 
   if (impactDeltaHeader) {
-    impactDeltaHeader.textContent = isWeekly ? "Vecka" : isPeriodThree ? "Totalt (period 3)" : "Totalt (period 2)";
+    impactDeltaHeader.textContent = isWeekly ? "Vecka" : isPeriodThree ? "Totalt (Stanley Cup)" : "Totalt (period 2)";
   }
 }
 
