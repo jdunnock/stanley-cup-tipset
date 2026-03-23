@@ -34,5 +34,22 @@ Separate project for Stanley Cup playoff tipping.
 - `POST /api/playoffs/scheduler/run-now`
 - `GET /api/playoffs/validator/files`
 - `POST /api/playoffs/validator/validate-team`
+- `GET /api/playoffs/validator/team?participantName=&period=`
 
 If `ADMIN_TOKEN` is configured, these endpoints return `403` without a matching `x-admin-token` header.
+
+## Validator — Roster Format
+
+Submit rosters via `POST /api/playoffs/validator/validate-team` or the web UI at `/validator.html`.
+
+Roster rules:
+- Exactly **12 players**: 2 goalies (G), 4 defensemen (D), 6 forwards (F)
+- One player per line: `POSITIO: Nimi (JOUKKUE)`
+- Example lines:
+  ```
+  G: Shesterkin (NYR)
+  D: Makar (COL)
+  F: McDavid (EDM)
+  ```
+- Period must be `period1` or `period2`
+- Valid rosters are saved to `data/validator-teams.json` (gitignored, runtime data)

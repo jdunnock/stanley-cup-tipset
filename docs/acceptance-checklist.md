@@ -3,9 +3,9 @@
 ## Functional
 - [ ] Lagen works with playoff data
 - [ ] Stallningen scoring matches agreed test dataset
-- [ ] Stallningen auto-updates at 09:00 Europe/Helsinki
+- [x] Stallningen auto-updates at 09:00 Europe/Helsinki
 - [ ] Nyheter collects and displays content as expected
-- [ ] Validator detects intentionally broken data
+- [x] Validator detects intentionally broken data
 
 ## UX
 - [ ] Structure and usage are aligned with current product
@@ -14,4 +14,4 @@
 ## Operations
 - [ ] Runbook approved
 - [ ] D-Day checklist approved
-- [ ] Logging and audit trail active for scheduled jobs
+- [x] Logging and audit trail active for scheduled jobs

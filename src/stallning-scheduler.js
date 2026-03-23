@@ -49,11 +49,19 @@ export function createStallningScheduler({ hour = 9, minute = 0 } = {}) {
   let timeoutHandle = null;
   let intervalHandle = null;
   let lastRun = null;
+  let lastSuccessful = null;
+  let lastError = null;
   let nextRun = nextRunIso(hour, minute);
 
   async function execute(trigger) {
     lastRun = await runStallningJob({ trigger });
     nextRun = nextRunIso(hour, minute);
+    if (lastRun.status === "success") {
+      lastSuccessful = lastRun;
+      lastError = null;
+    } else {
+      lastError = { message: lastRun.details, at: lastRun.finishedAt };
+    }
     return lastRun;
   }
 
@@ -96,6 +104,8 @@ export function createStallningScheduler({ hour = 9, minute = 0 } = {}) {
       scheduledMinute: minute,
       nextRun,
       lastRun,
+      lastSuccessful,
+      lastError,
       active: Boolean(timeoutHandle || intervalHandle),
     };
   }
