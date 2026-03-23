@@ -103,7 +103,7 @@ async function fetchAll(entity, sortProperty, fromDate, toDate) {
 
   while (start < total) {
     const sort = encodeURIComponent(JSON.stringify([{ property: sortProperty, direction: "DESC" }]));
-    const parts = [`seasonId=${SEASON_ID}`, "gameTypeId=2"];
+    const parts = [`seasonId=${SEASON_ID}`, "gameTypeId=3"];
     if (fromDate) {
       parts.push(`gameDate>=\"${fromDate}\"`);
     }

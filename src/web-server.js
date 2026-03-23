@@ -1596,7 +1596,7 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
     return token || "";
   }
 
-  const cayenneExp = `seasonId=${seasonId} and gameTypeId=2 and gameDate<="${toDate}" and gameDate>="${fromDate}"`;
+  const cayenneExp = `seasonId=${seasonId} and gameTypeId=3 and gameDate<="${toDate}" and gameDate>="${fromDate}"`;
   const skaterRows = await fetchStatsSummaryAll({
     entity: "skater",
     sortExpr: [

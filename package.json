@@ -1,7 +1,7 @@
 {
-  "name": "nhl-stats",
+  "name": "stanley-cup-tipset",
   "version": "1.0.0",
-  "description": "MCP server for NHL 2025-2026 stats",
+  "description": "Stanley Cup Tipset web app and API",
   "type": "module",
   "main": "src/server.js",
   "scripts": {

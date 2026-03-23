@@ -1,6 +1,6 @@
-# NHL Stats MCP Server + Web UI
+# Stanley Cup Tipset + Web UI
 
-MCP server that wraps NHL public endpoints and a single-page web UI for comparing player points.
+Stanley Cup tipping project based on nhl-stats baseline, with playoff-focused rules and data windows.
 
 ## Reusable AI workflow kit
 
