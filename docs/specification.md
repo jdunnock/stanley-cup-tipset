@@ -605,3 +605,6 @@ Suositeltu raportointi:
     - Korjattu `public/stallning.js`: poistettu vanha `/api/excel-files`-haku (`loadFiles`) ja `file`-queryparametri `/api/tipsen-summary` kutsusta
     - Korjattu `public/tipsen.js`: poistettu vanha `/api/excel-files`-haku (`loadFiles`) ja `file`-queryparametri `/api/tipsen-summary` kutsusta
     - Oire "Unexpected token '<', \"<!DOCTYPE ...\" is not valid JSON" poistuu, koska frontend ei enää yritä parsea HTML-vastausta JSONiksi
+  - **Hotfix: team-validator `fileName is not defined`:**
+    - Korjattu `validateTeam()`-funktion ranking-kutsu (`buildPeriod3RankingData`) käyttämään eksplisiittistä `fileName: ""` arvoa
+    - Oire poistuu: uuden joukkueen validointi ei kaadu enää `ReferenceError: fileName is not defined` virheeseen

@@ -1935,7 +1935,7 @@ async function validateTeam({
   }
 
   const ranking = await buildPeriod3RankingData({
-    fileName,
+    fileName: "",
     seasonId,
     fromDate: rankingFrom,
     toDate: rankingTo,
