@@ -579,3 +579,8 @@ Suositeltu raportointi:
     - Period 1 validointi: jättää omistussäännöt väliin (puhtaalta pöydältä)
     - Period 1→2 validointi: voi tarkistaa vastaan `period1-rosters.json`-dataa
     - Period 2→3 validointi: jatkaa nykyisellä logiikalla (Excel-pohjainen tarkistus)
+  - **Toteutettu lagen-sivun Period 1 -esikatselutila:**
+    - Kun `period1-rosters.json.enabled === false` ja osallistujia on olemassa, `/api/tipsen-summary` palauttaa ilmoittautuneet tiimit 0 pisteellä (`rosterSource: "period1_preview"`)
+    - Esikatselutila sammuu automaattisesti kun `enabled` asetetaan arvoon `true` — koodimuutosta ei tarvita
+    - Lisätty `readPeriod1RostersRaw()` helper-funktio, joka erottaa preview-logiikan loadTemporaryPeriod1Rosters()-funktiosta
+    - Poistettu `tipsen.js`:sta ennenaikainen "Ingen Excel-fil hittades" -virhe, koska preview ei tarvitse Excel-tiedostoa

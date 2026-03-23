@@ -1361,6 +1361,25 @@ async function loadTemporaryPeriod1Rosters() {
   }
 }
 
+// Returns raw period1-rosters payload when enabled === false and participants exist.
+// Returns null when enabled === true (game active) or file missing/empty.
+async function readPeriod1RostersRaw() {
+  const filePath = await resolveTemporaryPeriod1RostersPath();
+  try {
+    const raw = await fs.readFile(filePath, "utf8");
+    const payload = JSON.parse(raw);
+    if (payload?.enabled !== false) {
+      return null;
+    }
+    if (!Array.isArray(payload?.participants) || payload.participants.length === 0) {
+      return null;
+    }
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 async function savePeriod1Roster(participantName, rosterData) {
   const filePath = await resolveTemporaryPeriod1RostersPath();
   
@@ -3567,6 +3586,51 @@ app.get("/api/tipsen-summary", async (req, res) => {
     if (!/^\d{8}$/.test(seasonId)) {
       res.status(400).json({ error: "seasonId must be an 8-digit string, e.g. 20252026" });
       return;
+    }
+
+    // Period 1 preview: show enrolled teams with 0 points while game has not started (enabled === false).
+    // Automatically deactivated when enabled flips to true — no code change needed.
+    {
+      const period1Preview = await readPeriod1RostersRaw();
+      if (period1Preview !== null) {
+        const previewRosterRows = [
+          { rowNumber: 1, role: "Maalivahti" },
+          { rowNumber: 2, role: "Maalivahti" },
+          { rowNumber: 3, role: "Puolustaja" },
+          { rowNumber: 4, role: "Puolustaja" },
+          { rowNumber: 5, role: "Puolustaja" },
+          { rowNumber: 6, role: "Puolustaja" },
+          { rowNumber: 7, role: "Hyökkääjä" },
+          { rowNumber: 8, role: "Hyökkääjä" },
+          { rowNumber: 9, role: "Hyökkääjä" },
+          { rowNumber: 10, role: "Hyökkääjä" },
+          { rowNumber: 11, role: "Hyökkääjä" },
+          { rowNumber: 12, role: "Hyökkääjä" },
+        ];
+        const previewParticipants = period1Preview.participants.map((participant) => {
+          const players = [];
+          let rn = 1;
+          for (const label of participant.goalies ?? []) {
+            players.push({ rowNumber: rn++, role: "Maalivahti", playerLabel: String(label), teamAbbrev: "", deltaPoints: 0, source: "period1_preview", matchedFullName: "" });
+          }
+          for (const label of participant.defenders ?? []) {
+            players.push({ rowNumber: rn++, role: "Puolustaja", playerLabel: String(label), teamAbbrev: "", deltaPoints: 0, source: "period1_preview", matchedFullName: "" });
+          }
+          for (const label of participant.forwards ?? []) {
+            players.push({ rowNumber: rn++, role: "Hyökkääjä", playerLabel: String(label), teamAbbrev: "", deltaPoints: 0, source: "period1_preview", matchedFullName: "" });
+          }
+          return { name: participant.name, totalDelta: 0, players };
+        });
+        res.json({
+          file: fileName,
+          seasonId,
+          compareDate,
+          rosterSource: "period1_preview",
+          rosterRows: previewRosterRows,
+          participants: previewParticipants,
+        });
+        return;
+      }
     }
 
     const files = await listExcelFiles();

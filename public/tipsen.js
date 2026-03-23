@@ -381,11 +381,6 @@ async function loadTipsenSummary(options = {}) {
   const seasonId = selectedSeasonId;
   const compareDate = selectedCompareDate;
 
-  if (!file) {
-    setStatus("Ingen Excel-fil hittades.");
-    return;
-  }
-
   setStatus("");
 
   const params = new URLSearchParams({ file, seasonId, compareDate });
