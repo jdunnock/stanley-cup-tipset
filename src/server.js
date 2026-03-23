@@ -152,17 +152,72 @@ async function saveStoredTeams(teams) {
   await writeFile(TEAM_STORE_FILE, `${JSON.stringify(teams, null, 2)}\n`, "utf8");
 }
 
-function parseRosterLine(rawLine) {
+const SECTION_HEADERS = {
+  målvakter: "G", maalivahdit: "G", goalies: "G", goaltenders: "G",
+  backar: "D", puolustajat: "D", defensemen: "D", defense: "D",
+  forwards: "F", "hyökkääjät": "F", anfallare: "F", forward: "F",
+};
+
+function detectSectionHeader(line) {
+  const key = line.trim().toLowerCase();
+  return Object.hasOwn(SECTION_HEADERS, key) ? SECTION_HEADERS[key] : null;
+}
+
+function parsePlayerLine(rawLine) {
   const line = rawLine.replace(/\s+/g, " ").trim();
-  const match = line.match(/^(G|D|F)\s*:\s*(.+?)\s*\(([A-Z]{2,4})\)$/i);
-  if (!match) {
-    return null;
+
+  // Prefix format: G: Shesterkin (NYR)
+  const prefixMatch = line.match(/^(G|D|F)\s*:\s*(.+?)\s*\(([A-Za-z]{2,4})\)$/i);
+  if (prefixMatch) {
+    return { position: prefixMatch[1].toUpperCase(), name: prefixMatch[2].trim(), team: prefixMatch[3].toUpperCase() };
   }
-  return {
-    position: match[1].toUpperCase(),
-    name: match[2].trim(),
-    team: match[3].toUpperCase(),
-  };
+
+  // Parentheses format: Shesterkin (NYR) or Dylan Holloway (Buf)
+  const parenMatch = line.match(/^(.+?)\s*\(([A-Za-z]{2,4})\)$/i);
+  if (parenMatch) {
+    return { position: null, name: parenMatch[1].trim(), team: parenMatch[2].toUpperCase() };
+  }
+
+  // Comma format: Dylan Holloway, STL
+  const commaMatch = line.match(/^(.+?)\s*,\s*([A-Za-z]{2,4})$/i);
+  if (commaMatch) {
+    return { position: null, name: commaMatch[1].trim(), team: commaMatch[2].toUpperCase() };
+  }
+
+  return null;
+}
+
+function parseRosterText(rosterText) {
+  const lines = rosterText.split("\n").map((l) => l.trim()).filter(Boolean);
+  const validPlayers = [];
+  const invalidRows = [];
+  let currentPosition = null;
+  let playerLineCount = 0;
+
+  for (const line of lines) {
+    const sectionPos = detectSectionHeader(line);
+    if (sectionPos !== null) {
+      currentPosition = sectionPos;
+      continue;
+    }
+
+    playerLineCount++;
+    const parsed = parsePlayerLine(line);
+    if (!parsed) {
+      invalidRows.push(line);
+      continue;
+    }
+
+    const position = parsed.position || currentPosition;
+    if (!position) {
+      invalidRows.push(line);
+      continue;
+    }
+
+    validPlayers.push({ position, name: parsed.name, team: parsed.team });
+  }
+
+  return { validPlayers, invalidRows, playerLineCount };
 }
 
 async function parseRequestBody(req) {
@@ -341,33 +396,21 @@ async function handleApi(req, res) {
     const participantName = String(body.participantName || "").trim();
     const period = normalizePeriod(body.period);
     const rosterText = String(body.rosterText || "").trim();
-    const rawRows = rosterText
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
+    const { validPlayers: parsedPlayers, invalidRows: invalidFormatRows, playerLineCount } = parseRosterText(rosterText);
 
-    const invalidFormatRows = [];
     const duplicateNames = [];
     const seenNames = new Set();
     const teams = new Set();
-    const parsedPlayers = [];
     const positionCounts = { G: 0, D: 0, F: 0 };
 
-    for (const rawLine of rawRows) {
-      const parsed = parseRosterLine(rawLine);
-      if (!parsed) {
-        invalidFormatRows.push(rawLine);
-        continue;
-      }
-
-      const normalizedName = `${parsed.name.toLowerCase()}-${parsed.team}`;
+    for (const player of parsedPlayers) {
+      const normalizedName = `${player.name.toLowerCase()}-${player.team}`;
       if (seenNames.has(normalizedName)) {
-        duplicateNames.push(`${parsed.name} (${parsed.team})`);
+        duplicateNames.push(`${player.name} (${player.team})`);
       }
       seenNames.add(normalizedName);
-      teams.add(parsed.team);
-      parsedPlayers.push(parsed);
-      positionCounts[parsed.position] += 1;
+      teams.add(player.team);
+      positionCounts[player.position] = (positionCounts[player.position] || 0) + 1;
     }
 
     if (!participantName) {
@@ -379,7 +422,7 @@ async function handleApi(req, res) {
     if (!period) {
       errors.push("Period puuttuu tai on virheellinen. Sallitut: period1, period2.");
     }
-    if (rawRows.length !== 12) {
+    if (playerLineCount !== 12) {
       errors.push("Rosterissa tulee olla tasan 12 pelaajaa (2G + 4D + 6F).");
     }
     if (invalidFormatRows.length > 0) {
@@ -445,7 +488,7 @@ async function handleApi(req, res) {
       diagnostics: {
         participantName,
         period,
-        parsedPlayers: rawRows.length,
+        parsedPlayers: playerLineCount,
         parsedValidPlayers: parsedPlayers.length,
         positionCounts,
         uniqueTeams: teams.size,
