@@ -452,8 +452,8 @@ Tavoite:
 - Ei osa julkista tuotantokäyttöliittymää.
 
 Toteutus:
-- API: `POST /api/period3/validate-team`
-- Backoffice UI: `period3-validator.html` (+ `period3-validator.js`)
+- API: `POST /api/team-validator`
+- Backoffice UI: `team-validator.html` (+ `team-validator.js`)
 - Työkalu on admin-suojattu (ei julkinen näkymä)
 
 #### Syöteformaatti (yksi osallistuja kerrallaan)
@@ -561,7 +561,12 @@ Suositeltu raportointi:
   - Period 3 validator UX-parannus: bandisääntövirhe kohdistetaan nyt rikkovaan bandiin (esim. 11-20) ja kertoo kyseisen bandin sallitun määrän aiempien bandivalintojen jälkeen
   - Period 3 validator UX-parannus: bandisääntövirheen pelaajalista ryhmitellään bandeittain (1-10, 11-20, ...) nopeaa tulkintaa varten
   - Period 3 validator UX-parannus: ulkopelaajien bandisääntö-virhe kertoo nyt myös mitkä pelaajat (nimi, joukkue, rank) aiheuttavat rikkeen
-  - Toteutettu backoffice period 3 joukkuevalidatori: uusi admin-suojattu sivu `period3-validator.html` ja endpoint `POST /api/period3/validate-team`
+  - Toteutettu backoffice period 3 joukkuevalidatori: uusi admin-suojattu sivu `team-validator.html` ja endpoint `POST /api/team-validator`
   - Validatori toteuttaa syöteparserin (`Maalivahdit`/`Puolustajat`/`Hyökkääjät`) ja säännöt: 2G/4D/6F, max 2 per NHL-joukkue, period2 omistusrajoite, ulkopelaajien bandisääntö sekä maalivahtien rank-summa >= 30
   - Rankingista puuttuvat pelaajat palautetaan warningeina (ei hard fail)
   - Määritelty backoffice-käyttöön period 3 joukkuevalidatorin syöteformaatti, sääntöjoukko ja PASS/FAIL + warnings tulostesopimus (ei kooditoteutusta)
+
+- 2026-03-23
+  - Uudelleennimetty sivu `period3-validator.html` → `team-validator.html` ja vastaava moduuli + API-endpoint `/api/period3/validate-team` → `/api/team-validator` (sekä sisäinen funktio `validatePeriod3TeamSelection` → `validateTeam`)
+  - Poistettu team-validatorin UI:sta Excel-tiedoston valinta (käytetään nyt vain palvelimen oletusarvoa), koska period 2 -tiedosto ei enää ole käytössä
+  - Päivitetty team-validatorin "Ranking to" -päivämäärä: `2025-12-26` → `2026-04-15`

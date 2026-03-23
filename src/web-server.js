@@ -1686,7 +1686,7 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
   return data;
 }
 
-async function validatePeriod3TeamSelection({
+async function validateTeam({
   participantName,
   rosterText,
   fileName,
@@ -2944,9 +2944,9 @@ function isAdminProtectedPath(requestPath) {
   return [
     "/admin.html",
     "/app.js",
-    "/period3-validator.html",
-    "/period3-validator.js",
-    "/api/period3/validate-team",
+    "/team-validator.html",
+    "/team-validator.js",
+    "/api/team-validator",
     "/api/upload-excel",
     "/api/settings/compare-date",
     "/api/spelarna-reconciliation",
@@ -3151,7 +3151,7 @@ async function handleNyheterCollectRequest(req, res) {
 app.post("/api/nyheter/collect", handleNyheterCollectRequest);
 app.get("/api/nyheter/collect", handleNyheterCollectRequest);
 
-app.post("/api/period3/validate-team", async (req, res) => {
+app.post("/api/team-validator", async (req, res) => {
   try {
     const participantName = String(req.body?.participantName ?? "").trim();
     const rosterText = String(req.body?.rosterText ?? "").trim();
@@ -3180,7 +3180,7 @@ app.post("/api/period3/validate-team", async (req, res) => {
       return;
     }
 
-    const result = await validatePeriod3TeamSelection({
+    const result = await validateTeam({
       participantName,
       rosterText,
       fileName,

@@ -1,5 +1,4 @@
 const participantNameInput = document.getElementById("participantName");
-const fileSelect = document.getElementById("fileSelect");
 const seasonIdInput = document.getElementById("seasonId");
 const rankingFromInput = document.getElementById("rankingFrom");
 const rankingToInput = document.getElementById("rankingTo");
@@ -42,32 +41,6 @@ function setDecision(status) {
   decisionEl.textContent = "FAIL";
 }
 
-async function loadFiles() {
-  setStatus("Haetaan Excel-tiedostot...");
-  const response = await fetch("/api/excel-files");
-  const body = await response.json();
-  if (!response.ok) {
-    throw new Error(body.error || "Excel-listaus epäonnistui");
-  }
-
-  const files = Array.isArray(body.files) ? body.files : [];
-  fileSelect.innerHTML = "";
-
-  for (const fileName of files) {
-    const option = document.createElement("option");
-    option.value = fileName;
-    option.textContent = fileName;
-    fileSelect.appendChild(option);
-  }
-
-  const preferred = "NHL tipset 2026 jan-apr period2.xlsx";
-  if (files.includes(preferred)) {
-    fileSelect.value = preferred;
-  }
-
-  setStatus(`Valmis. Excel-tiedostoja: ${files.length}`);
-}
-
 async function validateRoster() {
   setStatus("Validoidaan...");
   validateBtn.disabled = true;
@@ -75,14 +48,13 @@ async function validateRoster() {
   try {
     const payload = {
       participantName: String(participantNameInput.value || "").trim(),
-      file: String(fileSelect.value || "").trim(),
       seasonId: String(seasonIdInput.value || "").trim(),
       rankingFrom: String(rankingFromInput.value || "").trim(),
       rankingTo: String(rankingToInput.value || "").trim(),
       rosterText: String(rosterTextInput.value || "").trim(),
     };
 
-    const response = await fetch("/api/period3/validate-team", {
+    const response = await fetch("/api/team-validator", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -113,7 +85,3 @@ async function validateRoster() {
 }
 
 validateBtn.addEventListener("click", validateRoster);
-
-loadFiles().catch((error) => {
-  setStatus(`Virhe: ${String(error.message || error)}`);
-});
