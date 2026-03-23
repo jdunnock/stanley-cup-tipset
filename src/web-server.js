@@ -50,6 +50,7 @@ const STARTUP_CACHE_WARMUP_ENABLED = String(process.env.STARTUP_CACHE_WARMUP_ENA
 const STARTUP_CACHE_WARMUP_DELAY_MS = Number.parseInt(process.env.STARTUP_CACHE_WARMUP_DELAY_MS ?? "5000", 10);
 const PERIOD3_REQUIRED_TARGET_DATE = "2026-03-15";
 const PERIOD3_TEMP_ROSTERS_FILE = "period3-rosters.json";
+const PERIOD1_TEMP_ROSTERS_FILE = "period1-rosters.json";
 const PERIOD3_VALIDATOR_DEFAULT_FILE = "NHL tipset 2026 jan-apr period2.xlsx";
 const PERIOD3_VALIDATOR_SEASON_ID = "20252026";
 const PERIOD3_VALIDATOR_RANKING_FROM = "2025-10-07";
@@ -1336,6 +1337,80 @@ async function hasTemporaryPeriod3Rosters() {
   return Boolean(version);
 }
 
+async function resolveTemporaryPeriod1RostersPath() {
+  return path.join(dataDir, PERIOD1_TEMP_ROSTERS_FILE);
+}
+
+async function loadTemporaryPeriod1Rosters() {
+  const filePath = await resolveTemporaryPeriod1RostersPath();
+  try {
+    const raw = await fs.readFile(filePath, "utf8");
+    const payload = JSON.parse(raw);
+
+    if (payload?.enabled !== true) {
+      return null;
+    }
+
+    if (!Array.isArray(payload?.participants)) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+async function savePeriod1Roster(participantName, rosterData) {
+  const filePath = await resolveTemporaryPeriod1RostersPath();
+  
+  try {
+    const name = String(participantName ?? "").trim();
+    if (!name || !Array.isArray(rosterData)) {
+      throw new Error("Invalid participant name or roster data");
+    }
+
+    let payload = { enabled: true, participants: [] };
+    
+    try {
+      const raw = await fs.readFile(filePath, "utf8");
+      payload = JSON.parse(raw);
+    } catch {
+      // File doesn't exist or is invalid JSON, use default
+    }
+
+    if (!Array.isArray(payload.participants)) {
+      payload.participants = [];
+    }
+
+    // Parse roster into role-based structure
+    const goalies = rosterData.filter(p => p.role === "goalie").map(p => `${p.playerName} (${p.teamAbbrev})`);
+    const defenders = rosterData.filter(p => p.role === "defense").map(p => `${p.playerName} (${p.teamAbbrev})`);
+    const forwards = rosterData.filter(p => p.role === "forward").map(p => `${p.playerName} (${p.teamAbbrev})`);
+
+    // Find and update or add participant
+    const existingIndex = payload.participants.findIndex(p => p.name === name);
+    const participantEntry = {
+      name,
+      goalies: goalies.length === 2 ? goalies : [],
+      defenders: defenders.length === 4 ? defenders : [],
+      forwards: forwards.length === 6 ? forwards : [],
+    };
+
+    if (existingIndex >= 0) {
+      payload.participants[existingIndex] = participantEntry;
+    } else {
+      payload.participants.push(participantEntry);
+    }
+
+    await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf8");
+    return true;
+  } catch (error) {
+    console.error(`Failed to save Period 1 roster for ${participantName}:`, error);
+    return false;
+  }
+}
+
 function buildPlayerLastTeamKey(playerName, teamAbbrev) {
   const lastName = normalizeLastNameInput(playerName);
   const team = normalizeTipsenTeamToken(teamAbbrev);
@@ -1470,7 +1545,7 @@ async function buildPeriod2OwnershipIndex(fileName) {
   const rows = XLSX.utils.sheet_to_json(tipsenSheet, { header: 1, defval: "" });
   const participantNameRow = rows[2] ?? [];
   const participantHeaderRow = rows[3] ?? [];
-  const participantColumns = [];
+  const participants = [];
 
   for (let col = 0; col < participantHeaderRow.length; col += 1) {
     if (normalizeText(participantHeaderRow[col]) !== "spelare") {
@@ -1482,22 +1557,69 @@ async function buildPeriod2OwnershipIndex(fileName) {
       continue;
     }
 
-    participantColumns.push({
+    const goalies = [];
+    const defenders = [];
+    const forwards = [];
+
+    for (const rowNumber of TIPSEN_PLAYER_ROWS) {
+      const row = rows[rowNumber - 1] ?? [];
+      const parsed = parseTipsenPlayerCell(row[col]);
+      if (!parsed?.playerName || !parsed?.teamAbbrev) {
+        continue;
+      }
+
+      const playerStr = `${parsed.playerName} (${parsed.teamAbbrev})`;
+      
+      // Determine role based on row number
+      if (rowNumber === 6 || rowNumber === 7) {
+        goalies.push(playerStr);
+      } else if (rowNumber === 10 || rowNumber === 11 || rowNumber === 12 || rowNumber === 13 || rowNumber === 14) {
+        defenders.push(playerStr);
+      } else if (rowNumber === 17 || rowNumber === 18 || rowNumber === 19 || rowNumber === 20 || rowNumber === 21) {
+        forwards.push(playerStr);
+      }
+    }
+
+    participants.push({
       name: participantName,
-      playerCol: col,
+      goalies,
+      defenders,
+      forwards,
     });
+  }
+
+  return buildOwnershipIndexFromRosters(participants);
+}
+
+function buildOwnershipIndexFromRosters(participants) {
+  if (!Array.isArray(participants)) {
+    return {
+      byLastTeam: new Map(),
+      byParticipant: new Map(),
+    };
   }
 
   const byLastTeam = new Map();
   const byParticipant = new Map();
-  for (const participant of participantColumns) {
-    if (!byParticipant.has(participant.name)) {
-      byParticipant.set(participant.name, new Set());
+
+  for (const participant of participants) {
+    const name = String(participant?.name ?? "").trim();
+    if (!name) {
+      continue;
     }
 
-    for (const rowNumber of TIPSEN_PLAYER_ROWS) {
-      const row = rows[rowNumber - 1] ?? [];
-      const parsed = parseTipsenPlayerCell(row[participant.playerCol]);
+    if (!byParticipant.has(name)) {
+      byParticipant.set(name, new Set());
+    }
+
+    const allPlayers = [
+      ...(Array.isArray(participant.goalies) ? participant.goalies : []),
+      ...(Array.isArray(participant.defenders) ? participant.defenders : []),
+      ...(Array.isArray(participant.forwards) ? participant.forwards : []),
+    ];
+
+    for (const playerStr of allPlayers) {
+      const parsed = parseTipsenPlayerCell(playerStr);
       if (!parsed?.playerName || !parsed?.teamAbbrev) {
         continue;
       }
@@ -1510,8 +1632,8 @@ async function buildPeriod2OwnershipIndex(fileName) {
       if (!byLastTeam.has(key)) {
         byLastTeam.set(key, new Set());
       }
-      byLastTeam.get(key).add(participant.name);
-      byParticipant.get(participant.name).add(key);
+      byLastTeam.get(key).add(name);
+      byParticipant.get(name).add(key);
     }
   }
 
@@ -1693,6 +1815,7 @@ async function validateTeam({
   seasonId,
   rankingFrom,
   rankingTo,
+  previousRosterData,
 }) {
   const errors = [];
   const warnings = [];
@@ -1747,33 +1870,42 @@ async function validateTeam({
     }
   }
 
-  const ownership = await buildPeriod2OwnershipIndex(fileName);
-
-  const participantPeriod2Keys = ownership.byParticipant.get(participantName) ?? new Set();
-  if (participantPeriod2Keys.size > 0) {
-    const unchangedPlayers = roster.filter((player) => participantPeriod2Keys.has(player.lastTeamKey));
-    const changedCount = roster.length - unchangedPlayers.length;
-    if (changedCount < 2) {
-      const unchangedList = unchangedPlayers
-        .map((player) => `${player.playerName} (${player.teamAbbrev})`)
-        .sort((left, right) => left.localeCompare(right))
-        .join(", ");
-      errors.push(
-        `Vaihtosääntö rikki: period 3 joukkueessa pitää vaihtaa vähintään 2 pelaajaa period 2:een verrattuna (nyt vaihdettu ${changedCount}). Samana pysyneet: ${unchangedList}`
-      );
-    }
+  // Build ownership index from previous roster data if provided
+  let ownership = null;
+  if (previousRosterData) {
+    ownership = buildOwnershipIndexFromRosters(previousRosterData);
+  } else {
+    ownership = await buildPeriod2OwnershipIndex(fileName);
   }
 
-  for (const player of roster) {
-    const owners = ownership.byLastTeam.get(player.lastTeamKey);
-    if (!owners || owners.size === 0) {
-      continue;
+  // Only check ownership if we have data (not Period 1)
+  if (ownership) {
+    const participantPeriod2Keys = ownership.byParticipant.get(participantName) ?? new Set();
+    if (participantPeriod2Keys.size > 0) {
+      const unchangedPlayers = roster.filter((player) => participantPeriod2Keys.has(player.lastTeamKey));
+      const changedCount = roster.length - unchangedPlayers.length;
+      if (changedCount < 2) {
+        const unchangedList = unchangedPlayers
+          .map((player) => `${player.playerName} (${player.teamAbbrev})`)
+          .sort((left, right) => left.localeCompare(right))
+          .join(", ");
+        errors.push(
+          `Vaihtosääntö rikki: period 3 joukkueessa pitää vaihtaa vähintään 2 pelaajaa period 2:een verrattuna (nyt vaihdettu ${changedCount}). Samana pysyneet: ${unchangedList}`
+        );
+      }
     }
-    if (!owners.has(participantName)) {
-      const ownerNames = Array.from(owners.values()).sort((a, b) => a.localeCompare(b));
-      errors.push(
-        `Omistussääntö rikki: ${player.playerName} (${player.teamAbbrev}) oli period 2:ssa osallistujalla ${ownerNames.join(", ")}, ei ${participantName}`
-      );
+
+    for (const player of roster) {
+      const owners = ownership.byLastTeam.get(player.lastTeamKey);
+      if (!owners || owners.size === 0) {
+        continue;
+      }
+      if (!owners.has(participantName)) {
+        const ownerNames = Array.from(owners.values()).sort((a, b) => a.localeCompare(b));
+        errors.push(
+          `Omistussääntö rikki: ${player.playerName} (${player.teamAbbrev}) oli period 2:ssa osallistujalla ${ownerNames.join(", ")}, ei ${participantName}`
+        );
+      }
     }
   }
 
@@ -3159,6 +3291,7 @@ app.post("/api/team-validator", async (req, res) => {
     const seasonId = String(req.body?.seasonId ?? PERIOD3_VALIDATOR_SEASON_ID).trim();
     const rankingFrom = String(req.body?.rankingFrom ?? PERIOD3_VALIDATOR_RANKING_FROM).trim();
     const rankingTo = String(req.body?.rankingTo ?? PERIOD3_VALIDATOR_RANKING_TO).trim();
+    const previousRosterFile = String(req.body?.previousRosterFile ?? "").trim();
 
     if (!participantName) {
       res.status(400).json({ ok: false, error: "participantName is required" });
@@ -3180,6 +3313,17 @@ app.post("/api/team-validator", async (req, res) => {
       return;
     }
 
+    // Load previous roster data if provided
+    let previousRosterData = null;
+    if (previousRosterFile) {
+      if (previousRosterFile === "period1-rosters.json") {
+        const loaded = await loadTemporaryPeriod1Rosters();
+        if (loaded?.participants) {
+          previousRosterData = loaded.participants;
+        }
+      }
+    }
+
     const result = await validateTeam({
       participantName,
       rosterText,
@@ -3187,11 +3331,24 @@ app.post("/api/team-validator", async (req, res) => {
       seasonId,
       rankingFrom,
       rankingTo,
+      previousRosterData,
     });
+
+    // If validation passes, save to Period 1 rosters
+    let savedToPeriod1 = false;
+    if (result?.status === "PASS") {
+      const parsed = parsePeriod3RosterText(rosterText);
+      if (Array.isArray(parsed?.players)) {
+        savedToPeriod1 = await savePeriod1Roster(participantName, parsed.players);
+      }
+    }
 
     res.json({
       ok: true,
-      result,
+      result: {
+        ...result,
+        savedToPeriod1,
+      },
     });
   } catch (error) {
     res.status(500).json({ ok: false, error: String(error?.message ?? "unknown error") });

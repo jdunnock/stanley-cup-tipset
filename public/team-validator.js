@@ -72,7 +72,13 @@ async function validateRoster() {
     renderList(errorsListEl, result.errors || [], "Ei virheitä.");
     renderList(warningsListEl, result.warnings || [], "Ei varoituksia.");
     diagnosticsEl.textContent = JSON.stringify(result.diagnostics || {}, null, 2);
-    setStatus("Validointi valmis.");
+    
+    // Show success message if saved to Period 1
+    if (result.status === "PASS" && result.savedToPeriod1) {
+      setStatus("✓ Validointi onnistui ja tiimi lisätty Period 1:een");
+    } else {
+      setStatus("Validointi valmis.");
+    }
   } catch (error) {
     setDecision("FAIL");
     renderList(errorsListEl, [String(error.message || error)], "Ei virheitä.");

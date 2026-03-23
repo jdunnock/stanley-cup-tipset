@@ -570,3 +570,11 @@ Suositeltu raportointi:
   - Uudelleennimetty sivu `period3-validator.html` → `team-validator.html` ja vastaava moduuli + API-endpoint `/api/period3/validate-team` → `/api/team-validator` (sekä sisäinen funktio `validatePeriod3TeamSelection` → `validateTeam`)
   - Poistettu team-validatorin UI:sta Excel-tiedoston valinta (käytetään nyt vain palvelimen oletusarvoa), koska period 2 -tiedosto ei enää ole käytössä
   - Päivitetty team-validatorin "Ranking to" -päivämäärä: `2025-12-26` → `2026-04-15`
+  - Toteutettu Period 1 -joukkueiden tallennus: kun osallistuja läpäisee validoinnin team-validatorilla, tiimi tallennetaan automaattisesti `data/period1-rosters.json`:iin
+  - Team-validatorin UI näyttää success-viestin "✓ Validointi onnistui ja tiimi lisätty Period 1:een" kun roster tallentuu onnistuneesti
+  - **Refaktoroitu validaattorin omistussääntö periodiksi-huolimattomaksi:**
+    - Luotu `buildOwnershipIndexFromRosters()` funktio, joka rakentaa omistusindeksin mistä tahansa roster-datasta (Excel tai JSON)
+    - Parametrisoidtu `validateTeam()`: uusi `previousRosterData` parametri (optional)
+    - Period 1 validointi: jättää omistussäännöt väliin (puhtaalta pöydältä)
+    - Period 1→2 validointi: voi tarkistaa vastaan `period1-rosters.json`-dataa
+    - Period 2→3 validointi: jatkaa nykyisellä logiikalla (Excel-pohjainen tarkistus)
