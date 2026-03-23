@@ -20,8 +20,6 @@
     "@modelcontextprotocol/sdk": "^1.27.1",
     "better-sqlite3": "^11.10.0",
     "express": "^5.1.0",
-    "multer": "^2.1.1",
-    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   }
 }

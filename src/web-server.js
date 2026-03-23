@@ -4,17 +4,12 @@ import { promises as fs } from "node:fs";
 import { mkdirSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import XLSX from "xlsx";
-import multer from "multer";
 import Database from "better-sqlite3";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const PORT = Number.parseInt(process.env.PORT ?? "3000", 10);
-const DEFAULT_EXCEL_FILE = "NHL tipset 2026 jan-apr period1.xlsx";
-const DEFAULT_SHEET_NAME = "Spelarna";
 const DEFAULT_COMPARE_DATE = "2026-01-24";
-const TIPSEN_SHEET_NAME = "Tipsen";
 const TIPSEN_PLAYER_ROWS = [6, 7, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21];
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,7 +46,6 @@ const STARTUP_CACHE_WARMUP_DELAY_MS = Number.parseInt(process.env.STARTUP_CACHE_
 const PERIOD3_REQUIRED_TARGET_DATE = "2026-03-15";
 const PERIOD3_TEMP_ROSTERS_FILE = "period3-rosters.json";
 const PERIOD1_TEMP_ROSTERS_FILE = "period1-rosters.json";
-const PERIOD3_VALIDATOR_DEFAULT_FILE = "NHL tipset 2026 jan-apr period2.xlsx";
 const PERIOD3_VALIDATOR_SEASON_ID = "20252026";
 const PERIOD3_VALIDATOR_RANKING_FROM = "2025-10-07";
 const PERIOD3_VALIDATOR_RANKING_TO = "2025-12-26";
@@ -632,8 +626,7 @@ async function collectNyheterSnapshot({
   forceRefresh = false,
   allowOverwrite = false,
 } = {}) {
-  const files = await listExcelFiles();
-  if (await isNyheterSnapshotCollectionPaused(files)) {
+  if (await isNyheterSnapshotCollectionPaused()) {
     return {
       snapshotDate: String(snapshotDate ?? getHelsinkiTodayDate()).trim(),
       file: fileName,
@@ -765,9 +758,7 @@ async function runDailyAutoRefresh({
       };
     }
 
-    const files = await listExcelFiles();
-
-    if (targetDate >= PERIOD3_REQUIRED_TARGET_DATE && !(await hasPeriod3RosterSource(files))) {
+    if (targetDate >= PERIOD3_REQUIRED_TARGET_DATE && !(await hasPeriod3RosterSource())) {
       return {
         ok: true,
         executed: false,
@@ -790,37 +781,26 @@ async function runDailyAutoRefresh({
       };
     }
 
-    if (!files.length) {
-      return {
-        ok: true,
-        executed: false,
-        reason: "no_excel_files",
-        trigger,
-        date: targetDate,
+
+    let refreshResult;
+    try {
+      refreshResult = await forceRefreshTipsenForFile({ fileName: "", seasonId, compareDate });
+    } catch (error) {
+      refreshResult = {
+        file: "",
+        status: "error",
+        error: String(error?.message ?? "unknown error"),
       };
     }
 
-    const refreshResults = await runWithConcurrency(files, 2, async (fileName) => {
-      try {
-        return await forceRefreshTipsenForFile({ fileName, seasonId, compareDate });
-      } catch (error) {
-        return {
-          file: fileName,
-          status: "error",
-          error: String(error?.message ?? "unknown error"),
-        };
-      }
-    });
-
-    const failed = refreshResults.filter((item) => item.status !== "ok");
-    if (failed.length > 0) {
+    if (refreshResult.status !== "ok") {
       return {
         ok: false,
         executed: false,
         reason: "refresh_failed",
         trigger,
         date: targetDate,
-        results: refreshResults,
+        results: [refreshResult],
       };
     }
 
@@ -828,7 +808,7 @@ async function runDailyAutoRefresh({
     const snapshotResults = [];
     const snapshotErrors = [];
 
-    if (await isNyheterSnapshotCollectionPaused(files)) {
+    if (await isNyheterSnapshotCollectionPaused()) {
       setSetting("autoRefreshLastSuccessDate", targetDate);
       setSetting("autoRefreshLastRunAt", completedAt);
 
@@ -840,9 +820,8 @@ async function runDailyAutoRefresh({
         date: targetDate,
         compareDate,
         seasonId,
-        files: files.length,
         completedAt,
-        results: refreshResults,
+        results: [refreshResult],
         snapshots: [],
         snapshotErrors: [],
         snapshotsPaused: true,
@@ -851,22 +830,20 @@ async function runDailyAutoRefresh({
       };
     }
 
-    for (const fileName of files) {
-      try {
-        const snapshotResult = await collectNyheterSnapshot({
-          fileName,
-          seasonId: String(seasonId),
-          compareDate: String(compareDate),
-          snapshotDate: targetDate,
-          forceRefresh: false,
-        });
-        snapshotResults.push(snapshotResult);
-      } catch (error) {
-        snapshotErrors.push({
-          file: fileName,
-          error: String(error?.message ?? "unknown error"),
-        });
-      }
+    try {
+      const snapshotResult = await collectNyheterSnapshot({
+        fileName: "",
+        seasonId: String(seasonId),
+        compareDate: String(compareDate),
+        snapshotDate: targetDate,
+        forceRefresh: false,
+      });
+      snapshotResults.push(snapshotResult);
+    } catch (error) {
+      snapshotErrors.push({
+        file: "",
+        error: String(error?.message ?? "unknown error"),
+      });
     }
 
     setSetting("autoRefreshLastSuccessDate", targetDate);
@@ -880,9 +857,8 @@ async function runDailyAutoRefresh({
       date: targetDate,
       compareDate,
       seasonId,
-      files: files.length,
       completedAt,
-      results: refreshResults,
+      results: [refreshResult],
       snapshots: snapshotResults,
       snapshotErrors,
     };
@@ -898,66 +874,32 @@ async function warmTipsenCacheOnStartup() {
   }
 
   const compareDate = getSetting("compareDate", DEFAULT_COMPARE_DATE);
-  const files = await listExcelFiles();
-  if (!files.length) {
-    console.log("[cache-warmup] skipped: no excel files found");
-    return;
-  }
-
-  const warmupCandidates = [];
-  for (const fileName of files) {
-    try {
-      const filePath = await resolveExistingExcelPath(fileName);
-      const workbook = XLSX.readFile(filePath, { bookSheets: true });
-      if (Array.isArray(workbook?.SheetNames) && workbook.SheetNames.includes(TIPSEN_SHEET_NAME)) {
-        warmupCandidates.push(fileName);
-      }
-    } catch (error) {
-      console.warn(`[cache-warmup] skipping ${fileName}: ${String(error?.message ?? "unknown error")}`);
-    }
-  }
-
-  if (!warmupCandidates.length) {
-    console.log("[cache-warmup] skipped: no files with Tipsen sheet found");
+  let rosterSource;
+  try {
+    rosterSource = await resolveActiveTemporaryRosterSource(getHelsinkiTodayDate());
+  } catch {
+    console.log("[cache-warmup] skipped: no active roster source available");
     return;
   }
 
   console.log(
-    `[cache-warmup] started for ${warmupCandidates.length} file(s), seasonId=${AUTO_REFRESH_SEASON_ID}, compareDate=${compareDate}`
+    `[cache-warmup] started — rosterSource=${rosterSource.sourceKey}, seasonId=${AUTO_REFRESH_SEASON_ID}, compareDate=${compareDate}`
   );
 
   const startedAt = Date.now();
-  const results = await runWithConcurrency(warmupCandidates, 1, async (fileName) => {
-    try {
-      return await forceRefreshTipsenForFile({
-        fileName,
-        seasonId: AUTO_REFRESH_SEASON_ID,
-        compareDate,
-      });
-    } catch (error) {
-      return {
-        file: fileName,
-        status: "error",
-        error: String(error?.message ?? "unknown error"),
-      };
-    }
-  });
-
-  const failed = results.filter((item) => item.status !== "ok");
-  const durationMs = Date.now() - startedAt;
-  if (failed.length > 0) {
-    console.warn(
-      `[cache-warmup] completed with errors (${results.length - failed.length}/${results.length} ok, ${durationMs}ms)`
-    );
-    for (const item of failed) {
-      console.warn(`[cache-warmup] failed ${item.file}: ${item.error}`);
-    }
-    return;
+  try {
+    await forceRefreshTipsenForFile({
+      fileName: "",
+      seasonId: AUTO_REFRESH_SEASON_ID,
+      compareDate,
+    });
+    const durationMs = Date.now() - startedAt;
+    console.log(`[cache-warmup] completed (${durationMs}ms)`);
+  } catch (error) {
+    const durationMs = Date.now() - startedAt;
+    console.warn(`[cache-warmup] failed (${durationMs}ms): ${String(error?.message ?? "unknown error")}`);
   }
-
-  console.log(`[cache-warmup] completed (${results.length}/${results.length} ok, ${durationMs}ms)`);
 }
-
 function getCronTokenFromRequest(req) {
   return String(req.headers["x-cron-token"] ?? req.query.token ?? "").trim();
 }
@@ -1017,13 +959,6 @@ if (!getSetting("compareDate")) {
 }
 
 clearResponseCacheOnVersionChange();
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024,
-  },
-});
 
 function normalizeHeader(value) {
   return String(value ?? "")
@@ -1675,63 +1610,6 @@ function findRankEntry(player, byFullKey, byLastKey) {
   };
 }
 
-async function buildPeriod2OwnershipIndex(fileName) {
-  const filePath = await resolveExistingExcelPath(fileName);
-  const workbook = XLSX.readFile(filePath);
-  const tipsenSheet = workbook.Sheets[TIPSEN_SHEET_NAME];
-  if (!tipsenSheet) {
-    throw new Error(`Sheet '${TIPSEN_SHEET_NAME}' not found in ${fileName}`);
-  }
-
-  const rows = XLSX.utils.sheet_to_json(tipsenSheet, { header: 1, defval: "" });
-  const participantNameRow = rows[2] ?? [];
-  const participantHeaderRow = rows[3] ?? [];
-  const participants = [];
-
-  for (let col = 0; col < participantHeaderRow.length; col += 1) {
-    if (normalizeText(participantHeaderRow[col]) !== "spelare") {
-      continue;
-    }
-
-    const participantName = String(participantNameRow[col] ?? "").trim();
-    if (!participantName) {
-      continue;
-    }
-
-    const goalies = [];
-    const defenders = [];
-    const forwards = [];
-
-    for (const rowNumber of TIPSEN_PLAYER_ROWS) {
-      const row = rows[rowNumber - 1] ?? [];
-      const parsed = parseTipsenPlayerCell(row[col]);
-      if (!parsed?.playerName || !parsed?.teamAbbrev) {
-        continue;
-      }
-
-      const playerStr = `${parsed.playerName} (${parsed.teamAbbrev})`;
-      
-      // Determine role based on row number
-      if (rowNumber === 6 || rowNumber === 7) {
-        goalies.push(playerStr);
-      } else if (rowNumber === 10 || rowNumber === 11 || rowNumber === 12 || rowNumber === 13 || rowNumber === 14) {
-        defenders.push(playerStr);
-      } else if (rowNumber === 17 || rowNumber === 18 || rowNumber === 19 || rowNumber === 20 || rowNumber === 21) {
-        forwards.push(playerStr);
-      }
-    }
-
-    participants.push({
-      name: participantName,
-      goalies,
-      defenders,
-      forwards,
-    });
-  }
-
-  return buildOwnershipIndexFromRosters(participants);
-}
-
 function buildOwnershipIndexFromRosters(participants) {
   if (!Array.isArray(participants)) {
     return {
@@ -1952,7 +1830,6 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
 async function validateTeam({
   participantName,
   rosterText,
-  fileName,
   seasonId,
   rankingFrom,
   rankingTo,
@@ -2022,9 +1899,8 @@ async function validateTeam({
     // This means Period 1 validation with clean slate - no ownership checks
     ownership = null;
   } else {
-    // No previousRosterFile parameter provided - this is Period 2->3 transition
-    // Build ownership index from Period 2 Excel data
-    ownership = await buildPeriod2OwnershipIndex(fileName);
+    // Period 2 Excel removed — no ownership check
+    ownership = null;
   }
 
   // Only check ownership if we have data (not Period 1)
@@ -2315,124 +2191,6 @@ async function resolveTipsenLiveSnapshot({ parsedCell, seasonId, compareDate, te
     snapshotCache.set(cacheKey, null);
     return null;
   }
-}
-
-function getSectionColumns(headerRow) {
-  let nameCol = 0;
-  let teamCol = -1;
-  let totalCol = -1;
-  let startCol = -1;
-  let deltaCol = -1;
-
-  for (let col = 0; col < headerRow.length; col += 1) {
-    const normalized = normalizeText(headerRow[col]);
-    if (!normalized) {
-      continue;
-    }
-
-    if (normalized === "spelare" || normalized === "malvakter" || normalized === "utespelare") {
-      nameCol = col;
-    }
-    if (normalized === "lag") {
-      teamCol = col;
-    }
-    if (normalized.includes("totalt")) {
-      totalCol = col;
-    }
-    if (normalized === "start") {
-      startCol = col;
-    }
-    if (normalized.includes("period")) {
-      deltaCol = col;
-    }
-  }
-
-  return { nameCol, teamCol, totalCol, startCol, deltaCol };
-}
-
-function parseSpelarnaReferenceRows(sheetRows) {
-  const sections = [];
-
-  for (let rowIndex = 0; rowIndex < sheetRows.length; rowIndex += 1) {
-    const row = sheetRows[rowIndex] ?? [];
-    const firstCell = normalizeText(row[0]);
-    if (firstCell !== "malvakter" && firstCell !== "utespelare") {
-      continue;
-    }
-
-    const sectionType = firstCell === "malvakter" ? "goalies" : "skaters";
-    const columns = getSectionColumns(row);
-    if (columns.teamCol < 0 || columns.totalCol < 0 || columns.startCol < 0 || columns.deltaCol < 0) {
-      continue;
-    }
-
-    const items = [];
-    for (let dataIndex = rowIndex + 1; dataIndex < sheetRows.length; dataIndex += 1) {
-      const dataRow = sheetRows[dataIndex] ?? [];
-      const first = normalizeText(dataRow[0]);
-      if (first === "malvakter" || first === "utespelare" || first === "totalpoang") {
-        break;
-      }
-
-      const name = String(dataRow[columns.nameCol] ?? "").trim();
-      const team = String(dataRow[columns.teamCol] ?? "").trim();
-      const total = Number(dataRow[columns.totalCol]);
-      const start = Number(dataRow[columns.startCol]);
-      const delta = Number(dataRow[columns.deltaCol]);
-
-      if (!name || !team || !Number.isFinite(total) || !Number.isFinite(start) || !Number.isFinite(delta)) {
-        continue;
-      }
-
-      items.push({
-        rowNumber: dataIndex + 1,
-        name,
-        team,
-        excelTotal: total,
-        excelStart: start,
-        excelDelta: delta,
-      });
-    }
-
-    sections.push({ sectionType, items });
-  }
-
-  return sections;
-}
-
-function isLikelyPlayerRow(lastName, teamName) {
-  const normalizedLast = normalizeText(lastName);
-  const normalizedTeam = normalizeText(teamName);
-
-  if (!normalizedLast) {
-    return false;
-  }
-
-  const invalidLastTokens = new Set([
-    "allavaldaspelare",
-    "malvakter",
-    "backar",
-    "forwards",
-    "forwardsforwards",
-    "anfallare",
-    "antal",
-    "poang",
-    "totalt",
-    "start",
-    "period2",
-    "lag",
-  ]);
-
-  if (invalidLastTokens.has(normalizedLast)) {
-    return false;
-  }
-
-  const invalidTeamTokens = new Set(["lag", "", "antal", "poang", "totalt", "start", "period2"]);
-  if (invalidTeamTokens.has(normalizedTeam)) {
-    return false;
-  }
-
-  return true;
 }
 
 function pickField(row, keys) {
@@ -2837,134 +2595,12 @@ function sumGoalieFantasyPoints(games) {
   return (games ?? []).reduce((sum, game) => sum + getGoalieGameFantasyPoints(game), 0);
 }
 
-async function listExcelFiles() {
-  await fs.mkdir(dataDir, { recursive: true });
-  const [rootEntries, dataEntries] = await Promise.all([
-    fs.readdir(rootDir, { withFileTypes: true }),
-    fs.readdir(dataDir, { withFileTypes: true }),
-  ]);
-
-  const rootFiles = rootEntries
-    .filter((entry) => entry.isFile() && /\.(xlsx|xls)$/i.test(entry.name) && !entry.name.startsWith("~$"))
-    .map((entry) => entry.name);
-
-  const dataFiles = dataEntries
-    .filter((entry) => entry.isFile() && /\.(xlsx|xls)$/i.test(entry.name) && !entry.name.startsWith("~$"))
-    .map((entry) => entry.name);
-
-  return Array.from(new Set([...rootFiles, ...dataFiles])).sort((a, b) => a.localeCompare(b));
-}
-
-function hasPeriod3Excel(files) {
-  return (files ?? []).some((fileName) => /period\s*3/i.test(String(fileName ?? "")));
-}
-
-async function hasPeriod3RosterSource(files) {
-  // Period 3 always uses the temporary roster JSON source.
-  void files;
+async function hasPeriod3RosterSource() {
   return hasTemporaryPeriod3Rosters();
 }
 
-async function isNyheterSnapshotCollectionPaused(files) {
-  return !(await hasPeriod3RosterSource(files));
-}
-
-function toSafeDataPath(fileName) {
-  const baseName = path.basename(fileName);
-  const dataPath = path.resolve(dataDir, baseName);
-  const rootPath = path.resolve(rootDir, baseName);
-
-  if (!dataPath.startsWith(dataDir) || !rootPath.startsWith(rootDir)) {
-    throw new Error("Invalid file path");
-  }
-
-  return { dataPath, rootPath, baseName };
-}
-
-async function resolveExistingExcelPath(fileName) {
-  const { dataPath, rootPath } = toSafeDataPath(fileName);
-  try {
-    await fs.access(rootPath);
-    return rootPath;
-  } catch {
-  }
-
-  try {
-    await fs.access(dataPath);
-    return dataPath;
-  } catch {
-  }
-
-  throw new Error(`Excel file not found: ${fileName}`);
-}
-
-function parseExcelPlayers(filePath) {
-  const workbook = XLSX.readFile(filePath);
-
-  if (workbook.Sheets[DEFAULT_SHEET_NAME]) {
-    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[DEFAULT_SHEET_NAME], { header: 1, defval: "" });
-
-    const sections = parseSpelarnaReferenceRows(rows);
-    const sectionPlayers = sections.flatMap((section) =>
-      (section.items ?? []).map((item) => ({
-        rowNumber: item.rowNumber,
-        lastName: item.name,
-        teamName: item.team,
-        playerId: null,
-        fullName: item.name,
-        normalizedLastName: normalizeLastNameInput(item.name),
-        sourceSectionType: section.sectionType,
-      }))
-    );
-
-    if (sectionPlayers.length > 0) {
-      return sectionPlayers;
-    }
-
-    return rows
-      .map((row, index) => ({
-        rowNumber: index + 1,
-        lastName: String(row?.[0] ?? "").trim(),
-        teamName: String(row?.[1] ?? "").trim(),
-      }))
-      .filter((row) => isLikelyPlayerRow(row.lastName, row.teamName))
-      .map((row) => ({
-        ...row,
-        playerId: null,
-        fullName: row.lastName,
-        normalizedLastName: normalizeLastNameInput(row.lastName),
-        sourceSectionType: "",
-      }));
-  }
-
-  const firstSheetName = workbook.SheetNames[0];
-  if (!firstSheetName) {
-    return [];
-  }
-  const sheet = workbook.Sheets[firstSheetName];
-  const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-  return rows.map((row, index) => {
-    const playerIdRaw = pickField(row, ["playerid", "nhlplayerid", "id"]);
-    const playerId = Number.parseInt(String(playerIdRaw ?? ""), 10);
-
-    const firstName = String(pickField(row, ["firstname", "etunimi"]) ?? "").trim();
-    const lastName = String(pickField(row, ["lastname", "sukunimi"]) ?? "").trim();
-    const fullName = String(
-      pickField(row, ["fullname", "name", "player", "pelaaja"]) ?? `${firstName} ${lastName}`
-    ).trim();
-
-    return {
-      rowNumber: index + 2,
-      playerId: Number.isInteger(playerId) && playerId > 0 ? playerId : null,
-      fullName,
-      lastName,
-      normalizedLastName: normalizeLastNameInput(lastName),
-      teamName: "",
-      sourceSectionType: "",
-      sourceRow: row,
-    };
-  });
+async function isNyheterSnapshotCollectionPaused() {
+  return !(await hasPeriod3RosterSource());
 }
 
 async function resolveTeamMap() {
@@ -3064,12 +2700,6 @@ function selectBestCandidate(candidates) {
   });
 
   return candidates[0];
-}
-
-async function resolvePlayersForFile(fileName) {
-  const filePath = await resolveExistingExcelPath(fileName);
-  const players = parseExcelPlayers(filePath);
-  return resolvePlayersFromInputPlayers(players);
 }
 
 function buildInputPlayersFromRosterParticipants(participants) {
@@ -3279,9 +2909,7 @@ function isAdminProtectedPath(requestPath) {
     "/team-validator.html",
     "/team-validator.js",
     "/api/team-validator",
-    "/api/upload-excel",
     "/api/settings/compare-date",
-    "/api/spelarna-reconciliation",
   ].some((prefix) => pathValue === prefix || pathValue.startsWith(`${prefix}/`));
 }
 
@@ -3398,15 +3026,6 @@ app.get("/api/data-readiness", async (req, res) => {
 app.post("/api/cron/daily-refresh", handleDailyAutoRefreshRequest);
 app.get("/api/cron/daily-refresh", handleDailyAutoRefreshRequest);
 
-app.get("/api/excel-files", async (_req, res) => {
-  try {
-    const files = await listExcelFiles();
-    res.json({ files });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.get("/api/settings", (_req, res) => {
   const compareDate = getSetting("compareDate", DEFAULT_COMPARE_DATE);
   res.json({ compareDate });
@@ -3436,7 +3055,7 @@ async function handleNyheterCollectRequest(req, res) {
   }
 
   try {
-    const fileName = String(req.query.file ?? req.body?.file ?? DEFAULT_EXCEL_FILE).trim();
+    const fileName = String(req.query.file ?? req.body?.file ?? "").trim();
     const seasonId = String(req.query.seasonId ?? req.body?.seasonId ?? AUTO_REFRESH_SEASON_ID).trim();
     const compareDate = String(
       req.query.compareDate ?? req.body?.compareDate ?? getSetting("compareDate", DEFAULT_COMPARE_DATE)
@@ -3487,7 +3106,6 @@ app.post("/api/team-validator", async (req, res) => {
   try {
     const participantName = String(req.body?.participantName ?? "").trim();
     const rosterText = String(req.body?.rosterText ?? "").trim();
-    const fileName = String(req.body?.file ?? PERIOD3_VALIDATOR_DEFAULT_FILE).trim();
     const seasonId = String(req.body?.seasonId ?? PERIOD3_VALIDATOR_SEASON_ID).trim();
     const rankingFrom = String(req.body?.rankingFrom ?? PERIOD3_VALIDATOR_RANKING_FROM).trim();
     const rankingTo = String(req.body?.rankingTo ?? PERIOD3_VALIDATOR_RANKING_TO).trim();
@@ -3528,7 +3146,6 @@ app.post("/api/team-validator", async (req, res) => {
     const result = await validateTeam({
       participantName,
       rosterText,
-      fileName,
       seasonId,
       rankingFrom,
       rankingTo,
@@ -3567,37 +3184,6 @@ app.post("/api/settings/compare-date", (req, res) => {
 
   setSetting("compareDate", compareDate);
   res.json({ compareDate });
-});
-
-app.post("/api/upload-excel", upload.single("file"), async (req, res) => {
-  try {
-    await fs.mkdir(dataDir, { recursive: true });
-
-    const file = req.file;
-    if (!file) {
-      res.status(400).json({ error: "Missing file field (name: file)" });
-      return;
-    }
-
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (!ext || ![".xlsx", ".xls"].includes(ext)) {
-      res.status(400).json({ error: "Only .xlsx/.xls files are allowed" });
-      return;
-    }
-
-    const safeBase = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_");
-    const { dataPath } = toSafeDataPath(safeBase);
-
-    await fs.writeFile(dataPath, file.buffer);
-
-    const files = await listExcelFiles();
-    res.json({
-      uploaded: safeBase,
-      files,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
 app.get("/api/players-stats-compare", async (req, res) => {
@@ -4033,108 +3619,12 @@ app.get("/api/tipsen-summary", async (req, res) => {
   }
 });
 
-app.get("/api/spelarna-reconciliation", async (req, res) => {
-  try {
-    const compareDateInput = String(req.query.compareDate ?? "").trim();
-    const compareDate = compareDateInput || getSetting("compareDate", DEFAULT_COMPARE_DATE);
-    const forceRefreshRaw = String(req.query.forceRefresh ?? "").trim().toLowerCase();
-    const forceRefresh = ["1", "true", "yes", "y"].includes(forceRefreshRaw);
-    const seasonId = String(req.query.seasonId ?? "20252026");
-    const fileName = String(req.query.file ?? DEFAULT_EXCEL_FILE).trim();
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(compareDate)) {
-      res.status(400).json({ error: "compareDate must be in format YYYY-MM-DD" });
-      return;
-    }
-
-    if (!/^\d{8}$/.test(seasonId)) {
-      res.status(400).json({ error: "seasonId must be an 8-digit string, e.g. 20252026" });
-      return;
-    }
-
-    const compareParams = new URLSearchParams({ file: fileName, seasonId, compareDate });
-    if (forceRefresh) {
-      compareParams.set("forceRefresh", "true");
-    }
-
-    const compareResponse = await fetch(`http://127.0.0.1:${PORT}/api/players-stats-compare?${compareParams}`);
-    const comparePayload = await compareResponse.json();
-    if (!compareResponse.ok) {
-      res.status(compareResponse.status).json(comparePayload);
-      return;
-    }
-
-    const filePath = await resolveExistingExcelPath(fileName);
-    const workbook = XLSX.readFile(filePath);
-    const spelarnaSheet = workbook.Sheets[DEFAULT_SHEET_NAME];
-    if (!spelarnaSheet) {
-      res.status(400).json({ error: `Sheet '${DEFAULT_SHEET_NAME}' not found in ${fileName}` });
-      return;
-    }
-
-    const sheetRows = XLSX.utils.sheet_to_json(spelarnaSheet, { header: 1, defval: "" });
-    const sections = parseSpelarnaReferenceRows(sheetRows);
-    const byRow = new Map((comparePayload.items ?? []).map((item) => [item.rowNumber, item]));
-
-    const responseSections = sections.map((section) => {
-      const mismatches = [];
-
-      for (const item of section.items) {
-        const api = byRow.get(item.rowNumber);
-        const apiTotal = Number(api?.todayPoints);
-        const apiStart = Number(api?.comparePoints);
-        const apiDelta = Number(api?.deltaPoints);
-        const matches =
-          Number.isFinite(apiTotal) &&
-          Number.isFinite(apiStart) &&
-          Number.isFinite(apiDelta) &&
-          item.excelTotal === apiTotal &&
-          item.excelStart === apiStart &&
-          item.excelDelta === apiDelta;
-
-        if (!matches) {
-          mismatches.push({
-            rowNumber: item.rowNumber,
-            name: item.name,
-            team: item.team,
-            excelTotal: item.excelTotal,
-            apiTotal: Number.isFinite(apiTotal) ? apiTotal : null,
-            excelStart: item.excelStart,
-            apiStart: Number.isFinite(apiStart) ? apiStart : null,
-            excelDelta: item.excelDelta,
-            apiDelta: Number.isFinite(apiDelta) ? apiDelta : null,
-            apiStatus: api?.status ?? "missing",
-          });
-        }
-      }
-
-      return {
-        sectionType: section.sectionType,
-        count: section.items.length,
-        matches: section.items.length - mismatches.length,
-        mismatches: mismatches.length,
-        items: mismatches,
-      };
-    });
-
-    res.json({
-      file: fileName,
-      seasonId,
-      compareDate,
-      sections: responseSections,
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.listen(PORT, async () => {
   await fs.mkdir(dataDir, { recursive: true });
   if (useMcpBridge) {
     await getMcpClient();
   }
   console.log(`Web UI running at http://localhost:${PORT}`);
-  console.log(`Excel source folders: ${rootDir} and ${dataDir}`);
   console.log(`Storage root: ${storageRoot}`);
   console.log(`Settings DB: ${settingsDbPath}`);
   console.log(`Response cache version: ${RESPONSE_CACHE_VERSION}`);

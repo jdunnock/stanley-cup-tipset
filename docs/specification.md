@@ -589,3 +589,15 @@ Suositeltu raportointi:
     - Lisätty helperit `resolveActiveTemporaryRosterSource()`, `loadEnabledTemporaryPeriod3RostersRaw()` ja `loadEnabledTemporaryPeriod1RostersRaw()`
     - `/api/tipsen-summary` ei enää käytä Excel-fallbackia osallistujarostereihin, vaan rakentaa osallistujasarakkeet JSON-rosterista (`buildTemporaryParticipantColumns()`)
     - Tipsen-summaryn cache-avain käyttää roster-version avainta (`sourceKey`), jolloin rosterimuutokset invalidoivat cachea ilman Excel-riippuvuutta
+  - **Passi 2: Excel/multer poistettu kokonaan — JSON-only arkkitehtuuri valmis:**
+    - Poistettu npm-paketit: `xlsx` ja `multer` (20 pakettia vähemmän)
+    - Poistettu kaikki `.xlsx`-binääritiedostot repositoriosta (`NHL tipset 2026 jan-apr period1–3.xlsx`, `data/players.xlsx`, `data/period2.xlsx`)
+    - Poistettu `web-server.js`:stä: `import XLSX`, `import multer`, vakiot `DEFAULT_EXCEL_FILE`, `DEFAULT_SHEET_NAME`, `TIPSEN_SHEET_NAME`, `PERIOD3_VALIDATOR_DEFAULT_FILE`, muuttuja `upload = multer({...})`
+    - Poistettu funktiot: `buildPeriod2OwnershipIndex()`, `listExcelFiles()`, `hasPeriod3Excel()`, `toSafeDataPath()`, `resolveExistingExcelPath()`, `parseExcelPlayers()`, `parseSpelarnaReferenceRows()`, `getSectionColumns()`, `isLikelyPlayerRow()`, `resolvePlayersForFile()`
+    - Yksinkertaistettu: `hasPeriod3RosterSource()` (ei `files`-parametria, kutsuu suoraan `hasTemporaryPeriod3Rosters()`), `isNyheterSnapshotCollectionPaused()` (ei `files`-parametria)
+    - Kirjoitettu uudelleen: `warmTipsenCacheOnStartup()` käyttää `resolveActiveTemporaryRosterSource()` + `forceRefreshTipsenForFile()`; `runDailyAutoRefresh()` ei enää käytä `listExcelFiles()`
+    - Poistettu endpointit: `/api/excel-files`, `/api/upload-excel`, `/api/spelarna-reconciliation`
+    - Korjattu: `validateTeam()` — `fileName`-parametri poistettu, kutsukohdassa `ownership = null`
+    - Korjattu: `isAdminProtectedPath` — poistettu `/api/upload-excel` ja `/api/spelarna-reconciliation` merkinnät
+    - Päivitetty `public/admin.html`: poistettu upload-boksi, tiedostovalitsin, reconcile-nappi ja mismatch-taulukko; otsikko "NHL admin - pelaajatilastot"; sarakkeen otsikko "Team (roster)"
+    - Päivitetty `public/app.js`: poistettu kaikki Excel-muuttujat, funktiot ja tapahtumankuuntelijat; `loadStats()` ei enää tarvitse `file`-parametria
