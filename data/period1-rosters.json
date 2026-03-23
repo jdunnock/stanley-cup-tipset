@@ -21,6 +21,27 @@
         "William Nylander (TOR)",
         "Jesper Bratt (NJD)"
       ]
+    },
+    {
+      "name": "Mattias",
+      "goalies": [
+        "Gibson (DET)",
+        "Bussi (CAR)"
+      ],
+      "defenders": [
+        "Raddysh (TBL)",
+        "Sanderson (OTT)",
+        "Charlie McAvoy (BOS)",
+        "Mattias Samuelsson (BUF)"
+      ],
+      "forwards": [
+        "Celebrini (SJS)",
+        "Johnston (DAL)",
+        "Crosby (PIT)",
+        "Keller (UTA)",
+        "Hagel (TBL)",
+        "Hyman (EDM)"
+      ]
     }
   ]
 }

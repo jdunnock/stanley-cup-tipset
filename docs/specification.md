@@ -575,6 +575,7 @@ Suositeltu raportointi:
   - **Refaktoroitu validaattorin omistussääntö periodiksi-huolimattomaksi:**
     - Luotu `buildOwnershipIndexFromRosters()` funktio, joka rakentaa omistusindeksin mistä tahansa roster-datasta (Excel tai JSON)
     - Parametrisoidtu `validateTeam()`: uusi `previousRosterData` parametri (optional)
+    - Frontend lähettää Period 1 -validoinnissa eksplisiittisesti `previousRosterFile: ""`, jolloin backend tunnistaa clean slate -tilan eikä rakenna period 2 -omistusindeksiä
     - Period 1 validointi: jättää omistussäännöt väliin (puhtaalta pöydältä)
     - Period 1→2 validointi: voi tarkistaa vastaan `period1-rosters.json`-dataa
     - Period 2→3 validointi: jatkaa nykyisellä logiikalla (Excel-pohjainen tarkistus)
