@@ -1816,6 +1816,7 @@ async function validateTeam({
   rankingFrom,
   rankingTo,
   previousRosterData,
+  previousRosterFile,
 }) {
   const errors = [];
   const warnings = [];
@@ -1873,8 +1874,15 @@ async function validateTeam({
   // Build ownership index from previous roster data if provided
   let ownership = null;
   if (previousRosterData) {
+    // previousRosterData provided (e.g., from period1-rosters.json for Period 1->2 transition)
     ownership = buildOwnershipIndexFromRosters(previousRosterData);
+  } else if (previousRosterFile !== undefined) {
+    // previousRosterFile parameter was explicitly provided (even if empty)
+    // This means Period 1 validation with clean slate - no ownership checks
+    ownership = null;
   } else {
+    // No previousRosterFile parameter provided - this is Period 2->3 transition
+    // Build ownership index from Period 2 Excel data
     ownership = await buildPeriod2OwnershipIndex(fileName);
   }
 
@@ -3332,6 +3340,7 @@ app.post("/api/team-validator", async (req, res) => {
       rankingFrom,
       rankingTo,
       previousRosterData,
+      previousRosterFile,
     });
 
     // If validation passes, save to Period 1 rosters
