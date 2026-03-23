@@ -3299,6 +3299,9 @@ app.post("/api/team-validator", async (req, res) => {
     const seasonId = String(req.body?.seasonId ?? PERIOD3_VALIDATOR_SEASON_ID).trim();
     const rankingFrom = String(req.body?.rankingFrom ?? PERIOD3_VALIDATOR_RANKING_FROM).trim();
     const rankingTo = String(req.body?.rankingTo ?? PERIOD3_VALIDATOR_RANKING_TO).trim();
+    
+    // Check if previousRosterFile was explicitly provided (not undefined)
+    const previousRosterFileProvided = req.body?.previousRosterFile !== undefined;
     const previousRosterFile = String(req.body?.previousRosterFile ?? "").trim();
 
     if (!participantName) {
@@ -3323,12 +3326,10 @@ app.post("/api/team-validator", async (req, res) => {
 
     // Load previous roster data if provided
     let previousRosterData = null;
-    if (previousRosterFile) {
-      if (previousRosterFile === "period1-rosters.json") {
-        const loaded = await loadTemporaryPeriod1Rosters();
-        if (loaded?.participants) {
-          previousRosterData = loaded.participants;
-        }
+    if (previousRosterFileProvided && previousRosterFile === "period1-rosters.json") {
+      const loaded = await loadTemporaryPeriod1Rosters();
+      if (loaded?.participants) {
+        previousRosterData = loaded.participants;
       }
     }
 
@@ -3340,7 +3341,7 @@ app.post("/api/team-validator", async (req, res) => {
       rankingFrom,
       rankingTo,
       previousRosterData,
-      previousRosterFile,
+      previousRosterFile: previousRosterFileProvided ? previousRosterFile : undefined,
     });
 
     // If validation passes, save to Period 1 rosters
