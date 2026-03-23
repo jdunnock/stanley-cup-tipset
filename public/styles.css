@@ -1,0 +1,242 @@
+:root {
+  color-scheme: light;
+  --surface-border: #cfe5df;
+  --text-strong: #10322a;
+  --text-muted: #3c6860;
+  --points-positive: #0f6a44;
+  --points-negative: #a33a3a;
+  --points-neutral: #1a4d44;
+  --brand-grad-start: #0f4b43;
+  --brand-grad-end: #1f6a5e;
+  --surface-bg: #edf6f3;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, Arial, sans-serif;
+  background: radial-gradient(circle at top, #f3faf8 0%, #eaf5f1 48%, #e2f0ec 100%);
+  color: var(--text-strong);
+}
+
+.page {
+  max-width: 1420px;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+}
+
+.top-nav {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.top-nav a {
+  text-decoration: none;
+  border: 1px solid #bfded5;
+  padding: 7px 12px;
+  border-radius: 999px;
+  color: #15483f;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.top-nav a.active {
+  background: linear-gradient(135deg, var(--brand-grad-start) 0%, var(--brand-grad-end) 100%);
+  color: #fff;
+  border-color: #175449;
+}
+
+.hero {
+  background: linear-gradient(145deg, #ffffff 0%, #f3fbf8 100%);
+  border-radius: 18px;
+  border: 1px solid var(--surface-border);
+  padding: 20px 22px;
+  margin-bottom: 16px;
+}
+
+.hero-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 32px;
+  letter-spacing: -0.02em;
+}
+
+.meta {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meta-chip {
+  border: 1px solid #d3e9e2;
+  background: var(--surface-bg);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--surface-border);
+  border-radius: 18px;
+  padding: 16px 18px;
+}
+
+.stack {
+  display: grid;
+  gap: 14px;
+}
+
+.list-wrap {
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #deece7;
+  padding: 13px 14px;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row.header {
+  background: linear-gradient(135deg, var(--brand-grad-start) 0%, var(--brand-grad-end) 100%);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rank {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.name {
+  font-weight: 700;
+}
+
+.points {
+  justify-self: end;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--points-neutral);
+}
+
+.points.points-positive {
+  color: var(--points-positive);
+}
+
+.points.points-negative {
+  color: var(--points-negative);
+}
+
+.table-wrap {
+  border-radius: 18px;
+  overflow: auto;
+  border: 1px solid var(--surface-border);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 780px;
+}
+
+th,
+td {
+  border-bottom: 1px solid #deece7;
+  padding: 10px 11px;
+  text-align: left;
+  font-size: 13px;
+}
+
+th {
+  background: linear-gradient(135deg, var(--brand-grad-start) 0%, var(--brand-grad-end) 100%);
+  color: #fff;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+button {
+  border: 1px solid #2a6d60;
+  background: linear-gradient(135deg, #0f4b43 0%, #1f6a5e 100%);
+  color: #fff;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  border: 1px solid #c7ddd6;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-size: 14px;
+}
+
+textarea {
+  min-height: 150px;
+  resize: vertical;
+}
+
+.grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-row {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  max-width: 320px;
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding: 16px 12px 26px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  .grid-two {
+    grid-template-columns: 1fr;
+  }
+}
