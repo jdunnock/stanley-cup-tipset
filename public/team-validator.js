@@ -52,6 +52,7 @@ async function validateRoster() {
       rankingFrom: String(rankingFromInput.value || "").trim(),
       rankingTo: String(rankingToInput.value || "").trim(),
       rosterText: String(rosterTextInput.value || "").trim(),
+      previousRosterFile: "", // Period 1 validation - clean slate (no ownership checks)
     };
 
     const response = await fetch("/api/team-validator", {
