@@ -8,7 +8,6 @@ const mobileHintEl = document.getElementById("mobileHint");
 const DEFAULT_SEASON_ID = "20252026";
 const DEFAULT_COMPARE_DATE = "2026-01-24";
 
-let selectedFile = "";
 let selectedSeasonId = DEFAULT_SEASON_ID;
 let selectedCompareDate = DEFAULT_COMPARE_DATE;
 
@@ -344,24 +343,6 @@ function renderMobileCards(data) {
   }
 }
 
-async function loadFiles() {
-  const response = await fetch("/api/excel-files");
-  const data = await response.json();
-
-  if (!data.files?.length) {
-    setStatus("Ingen Excel-fil hittades.");
-    return;
-  }
-
-  const preferred = "NHL tipset 2026 jan-apr period2.xlsx";
-  if (data.files.includes(preferred)) {
-    selectedFile = preferred;
-    return;
-  }
-
-  selectedFile = data.files[0];
-}
-
 async function loadSettings() {
   const response = await fetch("/api/settings");
   if (!response.ok) {
@@ -377,13 +358,12 @@ async function loadSettings() {
 async function loadTipsenSummary(options = {}) {
   const { forceRefresh = false } = options;
 
-  const file = selectedFile;
   const seasonId = selectedSeasonId;
   const compareDate = selectedCompareDate;
 
   setStatus("");
 
-  const params = new URLSearchParams({ file, seasonId, compareDate });
+  const params = new URLSearchParams({ seasonId, compareDate });
   if (forceRefresh) {
     params.set("forceRefresh", "true");
   }
@@ -405,7 +385,7 @@ async function loadTipsenSummary(options = {}) {
   setSummaryMeta("");
 }
 
-Promise.all([loadSettings(), loadFiles()])
+Promise.all([loadSettings()])
   .then(() => loadTipsenSummary())
   .catch((error) => {
     setStatus(`Fel vid initiering: ${error.message}`);

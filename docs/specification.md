@@ -601,3 +601,7 @@ Suositeltu raportointi:
     - Korjattu: `isAdminProtectedPath` — poistettu `/api/upload-excel` ja `/api/spelarna-reconciliation` merkinnät
     - Päivitetty `public/admin.html`: poistettu upload-boksi, tiedostovalitsin, reconcile-nappi ja mismatch-taulukko; otsikko "NHL admin - pelaajatilastot"; sarakkeen otsikko "Team (roster)"
     - Päivitetty `public/app.js`: poistettu kaikki Excel-muuttujat, funktiot ja tapahtumankuuntelijat; `loadStats()` ei enää tarvitse `file`-parametria
+  - **Hotfix: ställningen/lagen init-JSON virhe Passi 2 jälkeen:**
+    - Korjattu `public/stallning.js`: poistettu vanha `/api/excel-files`-haku (`loadFiles`) ja `file`-queryparametri `/api/tipsen-summary` kutsusta
+    - Korjattu `public/tipsen.js`: poistettu vanha `/api/excel-files`-haku (`loadFiles`) ja `file`-queryparametri `/api/tipsen-summary` kutsusta
+    - Oire "Unexpected token '<', \"<!DOCTYPE ...\" is not valid JSON" poistuu, koska frontend ei enää yritä parsea HTML-vastausta JSONiksi

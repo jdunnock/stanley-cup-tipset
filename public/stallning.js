@@ -28,7 +28,6 @@ const PERIOD_TWO_FINAL_POINTS = new Map([
   ["henrik", 5],
 ]);
 
-let selectedFile = "";
 let selectedSeasonId = DEFAULT_SEASON_ID;
 let selectedCompareDate = DEFAULT_COMPARE_DATE;
 
@@ -321,24 +320,6 @@ function buildTotalPeriodStandings(sortedParticipants, compareDate) {
   return applyCompetitionRank(sortedTotalStandings, (participant) => participant.totalPeriodPoints);
 }
 
-async function loadFiles() {
-  const response = await fetch("/api/excel-files");
-  const data = await response.json();
-
-  if (!data.files?.length) {
-    setStatus("Ingen Excel-fil hittades.");
-    return;
-  }
-
-  const preferred = "NHL tipset 2026 jan-apr period2.xlsx";
-  if (data.files.includes(preferred)) {
-    selectedFile = preferred;
-    return;
-  }
-
-  selectedFile = data.files[0];
-}
-
 async function loadSettings() {
   const response = await fetch("/api/settings");
   if (!response.ok) {
@@ -352,15 +333,9 @@ async function loadSettings() {
 }
 
 async function loadStandings() {
-  if (!selectedFile) {
-    setStatus("Ingen Excel-fil hittades.");
-    return;
-  }
-
   setStatus("");
 
   const params = new URLSearchParams({
-    file: selectedFile,
     seasonId: selectedSeasonId,
     compareDate: selectedCompareDate,
   });
@@ -392,7 +367,7 @@ async function loadStandings() {
 loadSettings()
   .then(() => {
     updateSectionTitles(selectedCompareDate);
-    return loadFiles();
+    return null;
   })
   .then(() => loadStandings())
   .catch((error) => {
