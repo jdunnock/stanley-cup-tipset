@@ -34,18 +34,29 @@
             <input id="participantName" placeholder="Esim. Jarmo" />
           </label>
           <label>
-            Tiedosto
-            <select id="fileSelect"></select>
+            Period
+            <select id="periodSelect">
+              <option value="period1">Period 1</option>
+              <option value="period2">Period 2</option>
+            </select>
           </label>
         </div>
 
+        <p class="hint-text">
+          Anna roster muodossa <strong>POSITIO: Nimi (JOUKKUE)</strong>. Kokoonpano: 2 maalivahtia (G), 4
+          puolustajaa (D), 6 hyokkaajaa (F).
+        </p>
+
         <label>
           Roster (1 pelaaja / rivi)
-          <textarea id="rosterText" placeholder="McDavid (EDM)\nAho (CAR)\nMakar (COL)"></textarea>
+          <textarea
+            id="rosterText"
+            placeholder="G: Shesterkin (NYR)\nG: Oettinger (DAL)\nD: Makar (COL)\nD: Fox (NYR)\nD: Hedman (TBL)\nD: Heiskanen (DAL)\nF: McDavid (EDM)\nF: Draisaitl (EDM)\nF: Aho (CAR)\nF: Rantanen (COL)\nF: Panarin (NYR)\nF: Hintz (DAL)"
+          ></textarea>
         </label>
 
         <div>
-          <button id="validateBtn" type="button">Aja validointi</button>
+          <button id="validateBtn" type="button">Validera ja skapa lag</button>
           <span id="decision" class="meta-chip" style="margin-left: 8px">-</span>
         </div>
 
@@ -63,6 +74,11 @@
         <article class="card">
           <h2>Diagnostics</h2>
           <pre id="diagnostics">-</pre>
+        </article>
+
+        <article class="card">
+          <h2>Tallennettu joukkue (valittu period)</h2>
+          <pre id="savedTeam">Ei tallennettua joukkuetta.</pre>
         </article>
       </section>
     </main>

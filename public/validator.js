@@ -1,6 +1,6 @@
 const participantNameInput = document.getElementById("participantName");
 const adminTokenInput = document.getElementById("adminToken");
-const fileSelect = document.getElementById("fileSelect");
+const periodSelect = document.getElementById("periodSelect");
 const rosterTextInput = document.getElementById("rosterText");
 const validateBtn = document.getElementById("validateBtn");
 const statusEl = document.getElementById("status");
@@ -8,6 +8,7 @@ const decisionEl = document.getElementById("decision");
 const errorsListEl = document.getElementById("errorsList");
 const warningsListEl = document.getElementById("warningsList");
 const diagnosticsEl = document.getElementById("diagnostics");
+const savedTeamEl = document.getElementById("savedTeam");
 
 const ADMIN_TOKEN_KEY = "playoffsAdminToken";
 
@@ -58,24 +59,44 @@ function setDecision(status) {
 }
 
 async function loadFiles() {
-  setStatus("Laddar filer...");
-  const response = await fetch("/api/playoffs/validator/files", {
-    headers: getAdminHeaders(),
-  });
-  const body = await response.json();
-  if (!response.ok || !body.ok) {
-    throw new Error(body.error || "File list load failed");
+  setStatus("Valmis");
+}
+
+function renderSavedTeam(team) {
+  if (!savedTeamEl) {
+    return;
   }
 
-  fileSelect.innerHTML = "";
-  const files = body.files || body.data?.files || [];
-  for (const fileName of files) {
-    const option = document.createElement("option");
-    option.value = fileName;
-    option.textContent = fileName;
-    fileSelect.appendChild(option);
+  if (!team) {
+    savedTeamEl.textContent = "Ei tallennettua joukkuetta.";
+    return;
   }
-  setStatus("Valmis");
+
+  savedTeamEl.textContent = JSON.stringify(team, null, 2);
+}
+
+async function loadSavedTeam() {
+  const participantName = String(participantNameInput?.value || "").trim();
+  const period = String(periodSelect?.value || "").trim();
+
+  if (!participantName || !period) {
+    renderSavedTeam(null);
+    return;
+  }
+
+  try {
+    const params = new URLSearchParams({ participantName, period });
+    const response = await fetch(`/api/playoffs/validator/team?${params.toString()}`, {
+      headers: getAdminHeaders(),
+    });
+    const body = await response.json();
+    if (!response.ok || !body.ok) {
+      throw new Error(body.error || "Saved team fetch failed");
+    }
+    renderSavedTeam(body.data?.team || null);
+  } catch {
+    renderSavedTeam(null);
+  }
 }
 
 async function validateRoster() {
@@ -85,7 +106,7 @@ async function validateRoster() {
   try {
     const payload = {
       participantName: String(participantNameInput.value || "").trim(),
-      file: String(fileSelect.value || "").trim(),
+      period: String(periodSelect?.value || "").trim(),
       rosterText: String(rosterTextInput.value || "").trim(),
     };
 
@@ -105,7 +126,13 @@ async function validateRoster() {
     renderList(errorsListEl, result.errors, "Ei virheita");
     renderList(warningsListEl, result.warnings, "Ei varoituksia");
     diagnosticsEl.textContent = JSON.stringify(result.diagnostics || {}, null, 2);
-    setStatus("Validointi valmis");
+    if (result.status === "PASS") {
+      setStatus("Joukkue tallennettu onnistuneesti");
+      renderSavedTeam(result.team || null);
+    } else {
+      setStatus("Validointi epaonnistui");
+      await loadSavedTeam();
+    }
   } catch (error) {
     setDecision("FAIL");
     renderList(errorsListEl, [String(error.message || error)], "Ei virheita");
@@ -119,6 +146,14 @@ async function validateRoster() {
 
 validateBtn.addEventListener("click", validateRoster);
 
+participantNameInput?.addEventListener("blur", () => {
+  loadSavedTeam().catch(() => {});
+});
+
+periodSelect?.addEventListener("change", () => {
+  loadSavedTeam().catch(() => {});
+});
+
 adminTokenInput?.addEventListener("change", () => {
   localStorage.setItem(ADMIN_TOKEN_KEY, String(adminTokenInput.value || "").trim());
 });
@@ -130,3 +165,5 @@ if (adminTokenInput) {
 loadFiles().catch((error) => {
   setStatus(`Virhe: ${String(error.message || error)}`);
 });
+
+loadSavedTeam().catch(() => {});

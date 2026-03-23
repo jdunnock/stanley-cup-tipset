@@ -1,5 +1,5 @@
 import http from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { createStallningScheduler } from "./stallning-scheduler.js";
 
@@ -8,6 +8,7 @@ const publicDir = path.resolve(process.cwd(), "public");
 const ADMIN_TOKEN = String(process.env.ADMIN_TOKEN || "").trim();
 const STALE_AFTER_MINUTES = Number(process.env.PLAYOFFS_STALE_AFTER_MINUTES || 24 * 60);
 const PLAYOFF_RULESET_VERSION = "playoff-simple-v1";
+const TEAM_STORE_FILE = path.resolve(process.cwd(), "data", "validator-teams.json");
 
 const scheduler = createStallningScheduler({ hour: 9, minute: 0 });
 scheduler.start();
@@ -123,6 +124,45 @@ function json(res, statusCode, body) {
     "Cache-Control": "no-store",
   });
   res.end(JSON.stringify(body));
+}
+
+function normalizePeriod(rawPeriod) {
+  const value = String(rawPeriod || "").trim().toLowerCase();
+  if (value === "period1" || value === "period 1") {
+    return "period1";
+  }
+  if (value === "period2" || value === "period 2") {
+    return "period2";
+  }
+  return "";
+}
+
+async function readStoredTeams() {
+  try {
+    const content = await readFile(TEAM_STORE_FILE, "utf8");
+    const parsed = JSON.parse(content);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveStoredTeams(teams) {
+  await mkdir(path.dirname(TEAM_STORE_FILE), { recursive: true });
+  await writeFile(TEAM_STORE_FILE, `${JSON.stringify(teams, null, 2)}\n`, "utf8");
+}
+
+function parseRosterLine(rawLine) {
+  const line = rawLine.replace(/\s+/g, " ").trim();
+  const match = line.match(/^(G|D|F)\s*:\s*(.+?)\s*\(([A-Z]{2,4})\)$/i);
+  if (!match) {
+    return null;
+  }
+  return {
+    position: match[1].toUpperCase(),
+    name: match[2].trim(),
+    team: match[3].toUpperCase(),
+  };
 }
 
 async function parseRequestBody(req) {
@@ -252,6 +292,43 @@ async function handleApi(req, res) {
     return true;
   }
 
+  if (method === "GET" && url.pathname === "/api/playoffs/validator/team") {
+    if (!ensureAdmin(req, res)) {
+      return true;
+    }
+
+    const participantName = String(url.searchParams.get("participantName") || "").trim();
+    const period = normalizePeriod(url.searchParams.get("period"));
+
+    if (!participantName || !period) {
+      json(res, 400, {
+        ok: false,
+        error: "participantName and valid period are required",
+      });
+      return true;
+    }
+
+    const allTeams = await readStoredTeams();
+    const team = allTeams.find(
+      (item) =>
+        String(item.participantName || "").toLowerCase() === participantName.toLowerCase() &&
+        String(item.period || "") === period
+    );
+
+    json(res, 200, {
+      ok: true,
+      data: {
+        found: Boolean(team),
+        team: team || null,
+      },
+      meta: {
+        source: "validator:team-store",
+        rulesetVersion: PLAYOFF_RULESET_VERSION,
+      },
+    });
+    return true;
+  }
+
   if (method === "POST" && url.pathname === "/api/playoffs/validator/validate-team") {
     if (!ensureAdmin(req, res)) {
       return true;
@@ -262,9 +339,9 @@ async function handleApi(req, res) {
     const warnings = [];
 
     const participantName = String(body.participantName || "").trim();
-    const file = String(body.file || "").trim();
+    const period = normalizePeriod(body.period);
     const rosterText = String(body.rosterText || "").trim();
-    const players = rosterText
+    const rawRows = rosterText
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean);
@@ -273,21 +350,24 @@ async function handleApi(req, res) {
     const duplicateNames = [];
     const seenNames = new Set();
     const teams = new Set();
+    const parsedPlayers = [];
+    const positionCounts = { G: 0, D: 0, F: 0 };
 
-    for (const rawLine of players) {
-      const line = rawLine.replace(/\s+/g, " ").trim();
-      const match = line.match(/^(.+?)\s*\(([A-Z]{2,4})\)$/);
-      if (!match) {
+    for (const rawLine of rawRows) {
+      const parsed = parseRosterLine(rawLine);
+      if (!parsed) {
         invalidFormatRows.push(rawLine);
         continue;
       }
 
-      const normalizedName = match[1].toLowerCase();
+      const normalizedName = `${parsed.name.toLowerCase()}-${parsed.team}`;
       if (seenNames.has(normalizedName)) {
-        duplicateNames.push(match[1]);
+        duplicateNames.push(`${parsed.name} (${parsed.team})`);
       }
       seenNames.add(normalizedName);
-      teams.add(match[2]);
+      teams.add(parsed.team);
+      parsedPlayers.push(parsed);
+      positionCounts[parsed.position] += 1;
     }
 
     if (!participantName) {
@@ -296,20 +376,14 @@ async function handleApi(req, res) {
     if (participantName.length < 2) {
       errors.push("participantName on liian lyhyt.");
     }
-    if (!file) {
-      errors.push("file puuttuu.");
+    if (!period) {
+      errors.push("Period puuttuu tai on virheellinen. Sallitut: period1, period2.");
     }
-    if (file && !file.endsWith(".xlsx")) {
-      errors.push("file paatteen tulee olla .xlsx.");
-    }
-    if (players.length < 3) {
-      errors.push("Rivimaara liian pieni. Anna vahintaan 3 pelaajaa.");
-    }
-    if (players.length > 12) {
-      warnings.push("Pelaajia on poikkeuksellisen paljon. Tarkista kokoonpanon rajat.");
+    if (rawRows.length !== 12) {
+      errors.push("Rosterissa tulee olla tasan 12 pelaajaa (2G + 4D + 6F).");
     }
     if (invalidFormatRows.length > 0) {
-      errors.push("Kaikki roster-rivit eivat ole muodossa 'Nimi (JOUKKUE)'.");
+      errors.push("Kaikki roster-rivit eivat ole muodossa 'POSITIO: Nimi (JOUKKUE)'.");
     }
     if (duplicateNames.length > 0) {
       errors.push("Rosterissa on duplikaattipelaajia.");
@@ -317,10 +391,51 @@ async function handleApi(req, res) {
     if (teams.size > 0 && teams.size < 2) {
       warnings.push("Rosterissa on vain yksi joukkuekoodi. Tarkista playoff-jakauma.");
     }
+    if (positionCounts.G !== 2) {
+      errors.push("Maalivahteja (G) tulee olla tasan 2.");
+    }
+    if (positionCounts.D !== 4) {
+      errors.push("Puolustajia (D) tulee olla tasan 4.");
+    }
+    if (positionCounts.F !== 6) {
+      errors.push("Hyokkaajia (F) tulee olla tasan 6.");
+    }
 
-    const expectedRoundFromFile = file.match(/round(\d+)/i)?.[1] || null;
-    if (!expectedRoundFromFile) {
-      warnings.push("Tiedoston nimesta ei voitu paatella playoff-kierrosta.");
+    const existingTeams = await readStoredTeams();
+    let savedTeam = null;
+    let replacedExisting = false;
+
+    if (errors.length === 0) {
+      const nowIso = new Date().toISOString();
+      const keyParticipant = participantName.toLowerCase();
+      const existingIndex = existingTeams.findIndex(
+        (team) => String(team.participantName || "").toLowerCase() === keyParticipant && team.period === period
+      );
+
+      const createdAt = existingIndex >= 0 ? existingTeams[existingIndex].createdAt || nowIso : nowIso;
+      savedTeam = {
+        participantName,
+        period,
+        players: parsedPlayers,
+        positionCounts,
+        teams: Array.from(teams).sort(),
+        rulesetVersion: PLAYOFF_RULESET_VERSION,
+        createdAt,
+        updatedAt: nowIso,
+      };
+
+      if (existingIndex >= 0) {
+        existingTeams[existingIndex] = savedTeam;
+        replacedExisting = true;
+      } else {
+        existingTeams.push(savedTeam);
+      }
+
+      await saveStoredTeams(existingTeams);
+    }
+
+    if (replacedExisting) {
+      warnings.push("Osallistujan periodin aiempi joukkue korvattiin uudella.");
     }
 
     const result = {
@@ -329,14 +444,18 @@ async function handleApi(req, res) {
       warnings,
       diagnostics: {
         participantName,
-        parsedPlayers: players.length,
+        period,
+        parsedPlayers: rawRows.length,
+        parsedValidPlayers: parsedPlayers.length,
+        positionCounts,
         uniqueTeams: teams.size,
         duplicatePlayers: duplicateNames,
         invalidRows: invalidFormatRows,
-        expectedRoundFromFile,
-        file,
+        saved: errors.length === 0,
+        replacedExisting,
         rulesetVersion: PLAYOFF_RULESET_VERSION,
       },
+      team: savedTeam,
     };
 
     json(res, 200, {
