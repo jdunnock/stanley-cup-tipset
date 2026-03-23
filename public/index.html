@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lagen</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+
+      body {
+        font-family: Inter, Arial, sans-serif;
+        margin: 0;
+        background: linear-gradient(180deg, #f6f8fb 0%, #eef2f8 100%);
+        color: #132033;
+      }
+
+      .page {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 28px 20px 36px;
+      }
+
+      .top-nav {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .top-nav a {
+        text-decoration: none;
+        border: 1px solid #cfd7e3;
+        padding: 6px 10px;
+        border-radius: 6px;
+        color: #1b2a41;
+        font-size: 14px;
+      }
+
+      .top-nav a.active {
+        background: #1b2a41;
+        color: #fff;
+        border-color: #1b2a41;
+        font-weight: 600;
+      }
+
+      .top-nav a.admin-link {
+        display: inline-flex;
+      }
+
+      .hero {
+        background: #ffffff;
+        border-radius: 14px;
+        border: 1px solid #d8e1ee;
+        padding: 18px 20px;
+        margin-bottom: 14px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+
+      .meta {
+        margin-top: 12px;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        font-size: 13px;
+        color: #3f4d65;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      #status {
+        margin: 0;
+        font-size: 13px;
+      }
+
+      .table-wrap {
+        border-radius: 14px;
+        overflow: auto;
+        border: 1px solid #d8e1ee;
+        background: #fff;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 980px;
+      }
+
+      thead tr:first-child th {
+        background: #182a45;
+        color: #fff;
+        border-bottom: 1px solid #2f4465;
+        font-size: 13px;
+        letter-spacing: 0.02em;
+      }
+
+      thead tr:nth-child(2) th {
+        background: #edf2fb;
+        color: #1d2c43;
+        font-size: 12px;
+      }
+
+      th,
+      td {
+        border: 1px solid #e2e8f2;
+        padding: 9px 10px;
+        text-align: left;
+        font-size: 13px;
+        vertical-align: middle;
+      }
+
+      td.points {
+        width: 82px;
+        text-align: right;
+        font-weight: 600;
+      }
+
+      td.player {
+        min-width: 170px;
+      }
+
+      td.empty {
+        color: #8a93a3;
+      }
+
+      td.not-found {
+        background: #fff4f4;
+      }
+
+      tr.total-row td {
+        font-weight: 700;
+        background: #f2f6fc;
+      }
+
+      .mobile-cards {
+        display: none;
+      }
+
+      @media (max-width: 900px) {
+        .page {
+          padding: 16px 12px 24px;
+        }
+
+        .top-nav a.admin-link {
+          display: none;
+        }
+
+        .table-wrap {
+          display: none;
+        }
+
+        .mobile-cards {
+          display: flex;
+          gap: 12px;
+          overflow-x: auto;
+          scroll-snap-type: x mandatory;
+          padding-bottom: 6px;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .participant-card {
+          scroll-snap-align: start;
+          flex: 0 0 86%;
+          background: #fff;
+          border: 1px solid #d8e1ee;
+          border-radius: 14px;
+          padding: 12px;
+        }
+
+        .participant-card h2 {
+          margin: 0 0 8px;
+          font-size: 18px;
+        }
+
+        .card-section {
+          margin-top: 10px;
+        }
+
+        .card-section-title {
+          margin: 0 0 6px;
+          font-size: 12px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: #4c5e7b;
+          font-weight: 700;
+        }
+
+        .card-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 6px 0;
+          border-bottom: 1px solid #edf1f7;
+          font-size: 13px;
+        }
+
+        .card-row:last-child {
+          border-bottom: none;
+        }
+
+        .card-player {
+          color: #1b2a41;
+        }
+
+        .card-points {
+          font-weight: 700;
+          min-width: 36px;
+          text-align: right;
+        }
+
+        .card-total {
+          margin-top: 10px;
+          padding-top: 10px;
+          border-top: 2px solid #d8e1ee;
+          display: flex;
+          justify-content: space-between;
+          font-weight: 700;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <nav class="top-nav" aria-label="Päänavigaatio">
+        <a href="/stallning.html">Ställningen</a>
+        <a href="/" class="active">Lagen</a>
+        <a href="/admin.html" class="admin-link">Admin</a>
+      </nav>
+
+      <section class="hero">
+        <h1>Lagen</h1>
+        <div class="meta hidden">
+          <div id="status"></div>
+          <div id="summaryMeta"></div>
+        </div>
+      </section>
+
+      <div class="table-wrap">
+        <table>
+          <thead id="head"></thead>
+          <tbody id="body"></tbody>
+        </table>
+      </div>
+
+      <div id="mobileCards" class="mobile-cards" aria-label="Deltagarkort"></div>
+    </div>
+
+    <script type="module" src="/tipsen.js"></script>
+  </body>
+</html>
