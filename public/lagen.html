@@ -7,12 +7,12 @@
     <style>
       :root {
         color-scheme: light;
-        --surface-border: #d5e1f3;
-        --text-strong: #102239;
-        --text-muted: #48617f;
+        --surface-border: #b8e4ca;
+        --text-strong: #0d2a1a;
+        --text-muted: #3c6648;
         --points-positive: #0f6a44;
         --points-negative: #a33a3a;
-        --points-neutral: #14355e;
+        --points-neutral: #123c22;
       }
 
       * {
@@ -22,7 +22,7 @@
       body {
         font-family: Inter, Arial, sans-serif;
         margin: 0;
-        background: radial-gradient(circle at top, #f5f8ff 0%, #edf2fa 45%, #e8eef8 100%);
+        background: radial-gradient(circle at top, #f0fbf4 0%, #e3f5ea 45%, #dbf0e4 100%);
         color: var(--text-strong);
       }
 
@@ -40,19 +40,19 @@
 
       .top-nav a {
         text-decoration: none;
-        border: 1px solid #cfdaea;
+        border: 1px solid #b4ddc2;
         padding: 7px 12px;
         border-radius: 999px;
-        color: #1a314e;
+        color: #173e24;
         font-size: 13px;
         font-weight: 600;
         background: rgba(255, 255, 255, 0.72);
       }
 
       .top-nav a.active {
-        background: linear-gradient(135deg, #112a49 0%, #1a3b66 100%);
+        background: linear-gradient(135deg, #0d3220 0%, #164028 100%);
         color: #fff;
-        border-color: #173559;
+        border-color: #123d24;
       }
 
       .top-nav a.admin-link {
@@ -60,7 +60,7 @@
       }
 
       .hero {
-        background: linear-gradient(145deg, #ffffff 0%, #f7faff 100%);
+        background: linear-gradient(145deg, #ffffff 0%, #f2fcf5 100%);
         border-radius: 18px;
         border: 1px solid var(--surface-border);
         padding: 20px 22px;
@@ -88,8 +88,8 @@
       }
 
       .meta-chip {
-        border: 1px solid #dbe6f5;
-        background: #f5f8fd;
+        border: 1px solid #c2e8d4;
+        background: #f0fbf4;
         color: var(--text-muted);
         border-radius: 999px;
         padding: 6px 10px;
@@ -116,9 +116,9 @@
       }
 
       thead tr:first-child th {
-        background: linear-gradient(135deg, #142d4f 0%, #1b436f 100%);
+        background: linear-gradient(135deg, #113522 0%, #17472b 100%);
         color: #fff;
-        border-bottom: 1px solid #2b4a71;
+        border-bottom: 1px solid #234e2e;
         font-size: 13px;
         letter-spacing: 0.02em;
       }
@@ -132,14 +132,14 @@
       }
 
       thead tr:nth-child(2) th {
-        background: #eef4ff;
-        color: #1d3554;
+        background: #e4f5ec;
+        color: #1a4026;
         font-size: 12px;
       }
 
       th,
       td {
-        border: 1px solid #e2e9f5;
+        border: 1px solid #c8ebda;
         padding: 11px 12px;
         text-align: left;
         font-size: 13px;
@@ -191,7 +191,7 @@
       }
 
       td.empty {
-        color: #8a96aa;
+        color: #769a7c;
       }
 
       td.not-found {
@@ -203,19 +203,19 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-weight: 800;
-        color: #325275;
-        background: #f4f8ff;
+        color: #2b5232;
+        background: #eefaf4;
       }
 
       tr.total-row td {
         font-weight: 800;
-        color: #0f2f57;
-        background: #e8f1ff;
-        border-top: 2px solid #c8d9f2;
+        color: #0c3820;
+        background: #daf2e5;
+        border-top: 2px solid #a8dcbe;
       }
 
       tbody tr:nth-child(even):not(.section-row):not(.total-row) td {
-        background: #fbfdff;
+        background: #f7fdfb;
       }
 
       .mobile-hint {
@@ -262,7 +262,7 @@
           font-weight: 700;
           letter-spacing: 0.04em;
           text-transform: uppercase;
-          color: #3d5574;
+          color: #2f5534;
         }
 
         .mobile-cards {
@@ -281,10 +281,10 @@
           flex: 0 0 calc(100vw - 34px);
           max-width: 360px;
           background: #fff;
-          border: 1px solid #d6e3f4;
+          border: 1px solid #bde6cc;
           border-radius: 16px;
           padding: 13px;
-          box-shadow: 0 8px 20px rgba(15, 40, 72, 0.08);
+          box-shadow: 0 8px 20px rgba(10, 35, 18, 0.08);
         }
 
         .participant-card h2 {
@@ -302,7 +302,7 @@
           font-size: 11px;
           letter-spacing: 0.07em;
           text-transform: uppercase;
-          color: #4c5e7b;
+          color: #3a5e3e;
           font-weight: 800;
         }
 
@@ -313,7 +313,7 @@
           gap: 10px;
           padding: 7px 0;
           min-height: 42px;
-          border-bottom: 1px solid #edf1f7;
+          border-bottom: 1px solid #d5ece0;
           font-size: 13px;
         }
 
@@ -326,7 +326,7 @@
           flex-direction: column;
           justify-content: center;
           min-height: 32px;
-          color: #1b2a41;
+          color: #172c22;
         }
 
         .card-points {
@@ -352,11 +352,11 @@
         .card-total {
           margin-top: 10px;
           padding-top: 10px;
-          border-top: 2px solid #d8e1ee;
+          border-top: 2px solid #b8e0cc;
           display: flex;
           justify-content: space-between;
           font-weight: 800;
-          color: #122c4e;
+          color: #103522;
         }
       }
 

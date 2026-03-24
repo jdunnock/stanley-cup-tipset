@@ -7,12 +7,12 @@
     <style>
       :root {
         color-scheme: light;
-        --surface-border: #d5e1f3;
-        --text-strong: #102239;
-        --text-muted: #48617f;
+        --surface-border: #b8e4ca;
+        --text-strong: #0d2a1a;
+        --text-muted: #3c6648;
         --points-positive: #0f6a44;
         --points-negative: #a33a3a;
-        --points-neutral: #14355e;
+        --points-neutral: #123c22;
       }
 
       * {
@@ -22,7 +22,7 @@
       body {
         font-family: Inter, Arial, sans-serif;
         margin: 0;
-        background: radial-gradient(circle at top, #f5f8ff 0%, #edf2fa 45%, #e8eef8 100%);
+        background: radial-gradient(circle at top, #f0fbf4 0%, #e3f5ea 45%, #dbf0e4 100%);
         color: var(--text-strong);
       }
 
@@ -40,19 +40,19 @@
 
       .top-nav a {
         text-decoration: none;
-        border: 1px solid #cfdaea;
+        border: 1px solid #b4ddc2;
         padding: 7px 12px;
         border-radius: 999px;
-        color: #1a314e;
+        color: #173e24;
         font-size: 13px;
         font-weight: 600;
         background: rgba(255, 255, 255, 0.72);
       }
 
       .top-nav a.active {
-        background: linear-gradient(135deg, #112a49 0%, #1a3b66 100%);
+        background: linear-gradient(135deg, #0d3220 0%, #164028 100%);
         color: #fff;
-        border-color: #173559;
+        border-color: #123d24;
       }
 
       .top-nav a.admin-link {
@@ -60,7 +60,7 @@
       }
 
       .hero {
-        background: linear-gradient(145deg, #ffffff 0%, #f7faff 100%);
+        background: linear-gradient(145deg, #ffffff 0%, #f2fcf5 100%);
         border-radius: 18px;
         border: 1px solid var(--surface-border);
         padding: 20px 22px;
@@ -83,14 +83,14 @@
       .hero-kicker {
         font-size: 13px;
         font-weight: 700;
-        color: #294a73;
+        color: #23512e;
         letter-spacing: 0.05em;
         text-transform: uppercase;
       }
 
       .hero-lead {
         margin: 10px 0 0;
-        color: #1d3655;
+        color: #1a4127;
         font-size: 15px;
         line-height: 1.45;
         max-width: 900px;
@@ -104,8 +104,8 @@
       }
 
       .meta-chip {
-        border: 1px solid #dbe6f5;
-        background: #f5f8fd;
+        border: 1px solid #c2e8d4;
+        background: #f0fbf4;
         color: var(--text-muted);
         border-radius: 999px;
         padding: 6px 10px;
@@ -126,8 +126,8 @@
 
       .spotlight {
         border-radius: 16px;
-        border: 1px solid #d9e5f6;
-        background: linear-gradient(145deg, #ffffff 0%, #f3f8ff 100%);
+        border: 1px solid #c0e6cc;
+        background: linear-gradient(145deg, #ffffff 0%, #edfaf3 100%);
         padding: 14px;
       }
 
@@ -137,7 +137,7 @@
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #2b4a71;
+        color: #234e2e;
       }
 
       .spotlight .value {
@@ -149,7 +149,7 @@
 
       .spotlight .sub {
         margin-top: 5px;
-        color: #3b5678;
+        color: #2c5434;
         font-size: 12px;
         font-weight: 600;
       }
@@ -175,14 +175,14 @@
 
       .card p {
         margin: 10px 0 0;
-        color: #203a5b;
+        color: #1c4428;
         line-height: 1.45;
         font-size: 14px;
       }
 
       .card.pulse {
-        background: linear-gradient(135deg, #ffffff 0%, #f1f7ff 70%, #eaf3ff 100%);
-        border-color: #cddff8;
+        background: linear-gradient(135deg, #ffffff 0%, #ecf9f2 70%, #def5e8 100%);
+        border-color: #b0e0c4;
       }
 
       .section-title {
@@ -191,7 +191,7 @@
         font-weight: 800;
         letter-spacing: 0.05em;
         text-transform: uppercase;
-        color: #27466f;
+        color: #214e2c;
       }
 
       .rank-list {
@@ -207,20 +207,20 @@
         grid-template-columns: 28px 1fr auto;
         align-items: center;
         gap: 10px;
-        border: 1px solid #e0e8f6;
+        border: 1px solid #c8eadc;
         border-radius: 12px;
         padding: 9px 10px;
-        background: #fbfdff;
+        background: #f7fdfb;
       }
 
       .rank-item .nr {
         font-weight: 800;
-        color: #2b4a71;
+        color: #234e2e;
       }
 
       .rank-item .name {
         font-weight: 700;
-        color: #102239;
+        color: #0d2a1a;
       }
 
       .rank-item .delta {
@@ -241,7 +241,7 @@
         border-collapse: separate;
         border-spacing: 0;
         margin-top: 10px;
-        border: 1px solid #dfe7f4;
+        border: 1px solid #c6e8d2;
         border-radius: 14px;
         overflow: hidden;
       }
@@ -249,7 +249,7 @@
       .impact-table th,
       .impact-table td {
         padding: 10px 11px;
-        border-bottom: 1px solid #e3ebf7;
+        border-bottom: 1px solid #caeada;
         font-size: 13px;
         text-align: left;
       }
@@ -259,8 +259,8 @@
       }
 
       .impact-table th {
-        background: #eef4ff;
-        color: #1d3554;
+        background: #e4f5ec;
+        color: #1a4026;
         font-weight: 700;
       }
 
@@ -281,9 +281,9 @@
       }
 
       .tag.watch {
-        color: #19508b;
-        background: #eaf3ff;
-        border: 1px solid #cfe0f8;
+        color: #166b2c;
+        background: #def5e8;
+        border: 1px solid #b2e2c6;
       }
 
       .tag.fun {
