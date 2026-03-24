@@ -645,3 +645,10 @@ Suositeltu raportointi:
     - Lisätty dataDir:n kirjoitettavuuden tarkistus (testiksi kirjoitetaan ja poistetaan väliaikaistiedosto startup-ajalla)
     - Parannettuja MCP-initalisointivirheviestejä: jos MCP-asiakas ei pääsy valmiiksi, sovellus jatkaa (non-fatal) mutta kirjoittaa selkeät warning-lokit
     - Startup epäonnistuu fatal-virheellä jos dataDir ei ole kirjoitettavissa
+  - **Vaihe C1 (arkkitehtuuri/testattavuus): getTipsenSummaryPayload-funktiosta neljä sub-funktiota:**
+    - Uusi `buildPeriod1PreviewResponse()`: eritetty period 1 preview -logiikka (63 riviä), testattavissa erillään
+    - Uusi `resolvePlayerMatch()`: pelaajan matching-kaskaadi (yhdistää 4 eri indeksiä), ydinalgoritmina erillään testattavissa
+    - Uusi `resolveDeltaPointsForPeriod3()`: period 3 -ranking-pistelaskenta, versionoitavissa ja toggleable riippumatta pääfunktiosta
+    - Uusi `buildPlayerRecord()`: pelaajan record-objektin rakentaja, eristää objektin rakentamisen logiikan
+    - getTipsenSummaryPayload kutistui 293 riviltä 180 riville, pääfunktio nyt luettavampi ja ylläpidettävämpi
+    - Kaikki ekstraktiot säilyttävät alkuperäisen toiminnallisuuden; ei behavior-muutoksia
