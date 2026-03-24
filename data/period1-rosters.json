@@ -1,47 +1,4 @@
 {
   "enabled": false,
-  "participants": [
-    {
-      "name": "Mattias",
-      "goalies": [
-        "Gibson (DET)",
-        "Bussi (CAR)"
-      ],
-      "defenders": [
-        "Raddysh (TBL)",
-        "Sanderson (OTT)",
-        "Charlie McAvoy (BOS)",
-        "Mattias Samuelsson (BUF)"
-      ],
-      "forwards": [
-        "Celebrini (SJS)",
-        "Johnston (DAL)",
-        "Crosby (PIT)",
-        "Keller (UTA)",
-        "Hagel (TBL)",
-        "Hyman (EDM)"
-      ]
-    },
-    {
-      "name": "Jarmo",
-      "goalies": [
-        "Lyon (BUF)",
-        "Oettinger (DAL)"
-      ],
-      "defenders": [
-        "Matthew Schaefer (NYI)",
-        "Moritz Seider (DET)",
-        "Raddysh (TBL)",
-        "Tony DeAngelo (NYI)"
-      ],
-      "forwards": [
-        "Celebrini (SJS)",
-        "Johnston (DAL)",
-        "Robert Thomas (STL)",
-        "Point (TBL)",
-        "Keller (UTA)",
-        "Dylan Holloway (STL)"
-      ]
-    }
-  ]
+  "participants": []
 }

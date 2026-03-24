@@ -616,6 +616,7 @@ Suositeltu raportointi:
     - Period 2→3 validointi: jatkaa nykyisellä logiikalla (Excel-pohjainen tarkistus)
 
 - 2026-03-24
+  - Siivottu pois Henrikin ja Joakimin joukkueet rosteridatasta (`period1-rosters.json` ja `period3-rosters.json`) ennen uutta Stanley Cup -syöttöä
   - Admin UI:hin lisätty otsikon alle lyhyt johdantoteksti ja korjattu ranking-ikkunaosion markup niin, että aktiivinen veikkaus toimii ainoana ohjaavana valintana
   - Admin UI:hin lisätty seliteteksti Vertailupäivä-kontrolleihin, jotta käyttötarkoitus on yksiselitteinen (vain vertailulaskenta, ei periodi/veikkauskonfiguraatio)
   - Lisätty kilpailukohtainen ranking-ikkuna-asetus adminiin (käsin asetettava):
