@@ -398,24 +398,14 @@ Periaate:
 - [docs/specification.md](docs/specification.md) määrittää tuotteen suunnan ja päätökset.
 - Skill-tiedostot määrittävät operatiivisen toteutusprosessin.
 
-## 10. Reusable workflow kit uusiin projekteihin
+## 10. Reusable template repo uusiin projekteihin
 
-Jotta sama AI-työtapa on helposti monistettavissa projektista toiseen, tässä repossa on valmis kit:
-
-- [docs/workflow-kit/README.md](docs/workflow-kit/README.md)
-- [docs/workflow-kit/COPY-CHECKLIST.md](docs/workflow-kit/COPY-CHECKLIST.md)
-- [docs/workflow-kit/templates/specification.template.md](docs/workflow-kit/templates/specification.template.md)
-- [docs/workflow-kit/templates/skills/chat-change-workflow.template.md](docs/workflow-kit/templates/skills/chat-change-workflow.template.md)
-- [docs/workflow-kit/templates/skills/bugfix-workflow.template.md](docs/workflow-kit/templates/skills/bugfix-workflow.template.md)
-- [docs/workflow-kit/templates/skills/release-workflow.template.md](docs/workflow-kit/templates/skills/release-workflow.template.md)
-- [docs/workflow-kit/templates/skills/ai-coding-operating-system.template.md](docs/workflow-kit/templates/skills/ai-coding-operating-system.template.md)
-- [docs/workflow-kit/templates/skills/ai-prompt-templates.template.md](docs/workflow-kit/templates/skills/ai-prompt-templates.template.md)
-- [docs/workflow-kit/templates/pull_request_template.md](docs/workflow-kit/templates/pull_request_template.md)
+Tämän projektin ulkopuolinen reusable bootstrap pidetään jatkossa keskitettynä erillisessä template-repossa, jotta tuotantoprojekti ei kanna mukana geneeristä workflow-kit-rakennetta.
 
 Käyttöperiaate:
-- Kopioi templates uuteen projektiin.
-- Nimeä ne kohdepolkuihin (`docs/specification.md`, `docs/skills/*.md`, `.github/pull_request_template.md`).
-- Täytä vain projektikohtaiset kohdat ja jatka samalla workflowlla.
+- ylläpidä reusable promptit, skillit ja specification-template keskitetysti template-repossa
+- pidä tämän repositorion `docs/skills/` vain tämän projektin operatiivisena ohjeistuksena
+- tuo uuteen projektiin vain tarvittavat tiedostot template-reposta bootstrap-vaiheessa
 
 ## 11. Period 3 -siirtymä (toteutettu malli + operointi)
 
@@ -616,6 +606,7 @@ Suositeltu raportointi:
     - Period 2→3 validointi: jatkaa nykyisellä logiikalla (Excel-pohjainen tarkistus)
 
 - 2026-03-24
+  - Siivottu workflow-skillien kaksoistotuus: `docs/skills/` on nyt kanoninen lähde, ja päällekkäiset `workflow-kit/templates/skills/` tiedostot toimivat pointereina eikä rinnakkaisena sisältönä
   - Siivottu pois Henrikin ja Joakimin joukkueet rosteridatasta (`period1-rosters.json` ja `period3-rosters.json`) ennen uutta Stanley Cup -syöttöä
   - Admin UI:hin lisätty otsikon alle lyhyt johdantoteksti ja korjattu ranking-ikkunaosion markup niin, että aktiivinen veikkaus toimii ainoana ohjaavana valintana
   - Admin UI:hin lisätty seliteteksti Vertailupäivä-kontrolleihin, jotta käyttötarkoitus on yksiselitteinen (vain vertailulaskenta, ei periodi/veikkauskonfiguraatio)
