@@ -166,11 +166,13 @@ let injuryCache = {
   fetchedAt: 0,
   data: new Map(),
 };
+let injuryCacheFetchPromise = null;
 let period3ValidatorRankingCache = {
   cacheKey: "",
   cachedAt: 0,
   data: null,
 };
+const period3ValidatorRankingInFlightByCacheKey = new Map();
 const settingsDb = new Database(settingsDbPath);
 
 settingsDb.exec(`
@@ -2033,20 +2035,26 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
     return period3ValidatorRankingCache.data;
   }
 
-  function encodeSort(sortObj) {
-    return encodeURIComponent(JSON.stringify(sortObj));
+  const inFlightRequest = period3ValidatorRankingInFlightByCacheKey.get(cacheKey);
+  if (inFlightRequest) {
+    return await inFlightRequest;
   }
 
-  function buildStatsSummaryUrl({ entity, start, limit, sortExpr, cayenneExp }) {
-    return (
-      `https://api.nhle.com/stats/rest/en/${entity}/summary` +
-      `?isAggregate=false&isGame=false&start=${start}&limit=${limit}` +
-      `&sort=${encodeSort(sortExpr)}` +
-      `&cayenneExp=${encodeURIComponent(cayenneExp)}`
-    );
-  }
+  const computePromise = (async () => {
+    function encodeSort(sortObj) {
+      return encodeURIComponent(JSON.stringify(sortObj));
+    }
 
-  async function fetchStatsSummaryAll({ entity, sortExpr, cayenneExp }) {
+    function buildStatsSummaryUrl({ entity, start, limit, sortExpr, cayenneExp }) {
+      return (
+        `https://api.nhle.com/stats/rest/en/${entity}/summary` +
+        `?isAggregate=false&isGame=false&start=${start}&limit=${limit}` +
+        `&sort=${encodeSort(sortExpr)}` +
+        `&cayenneExp=${encodeURIComponent(cayenneExp)}`
+      );
+    }
+
+    async function fetchStatsSummaryAll({ entity, sortExpr, cayenneExp }) {
     const limit = 200;
     let start = 0;
     let total = Number.POSITIVE_INFINITY;
@@ -2171,20 +2179,28 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
     addEntryToMapArray(goalieByLastKey, entry.lastTeamKey, entry);
   }
 
-  const data = {
-    skaterByFullKey,
-    skaterByLastKey,
-    goalieByFullKey,
-    goalieByLastKey,
-  };
+    const data = {
+      skaterByFullKey,
+      skaterByLastKey,
+      goalieByFullKey,
+      goalieByLastKey,
+    };
 
-  period3ValidatorRankingCache = {
-    cacheKey,
-    cachedAt: Date.now(),
-    data,
-  };
+    period3ValidatorRankingCache = {
+      cacheKey,
+      cachedAt: Date.now(),
+      data,
+    };
 
-  return data;
+    return data;
+  })();
+
+  period3ValidatorRankingInFlightByCacheKey.set(cacheKey, computePromise);
+  try {
+    return await computePromise;
+  } finally {
+    period3ValidatorRankingInFlightByCacheKey.delete(cacheKey);
+  }
 }
 
 async function validateTeam({
@@ -2785,18 +2801,28 @@ async function getInjuryLookup() {
     return injuryCache.data;
   }
 
-  try {
-    const payload = await fetchEspnNhlInjuries();
-    const lookup = buildInjuryLookup(payload);
-    injuryCache = {
-      fetchedAt: now,
-      data: lookup,
-    };
-    return lookup;
-  } catch (error) {
-    console.warn(`Injury lookup unavailable: ${error.message}`);
-    return injuryCache.data;
+  if (injuryCacheFetchPromise) {
+    return await injuryCacheFetchPromise;
   }
+
+  injuryCacheFetchPromise = (async () => {
+    try {
+      const payload = await fetchEspnNhlInjuries();
+      const lookup = buildInjuryLookup(payload);
+      injuryCache = {
+        fetchedAt: Date.now(),
+        data: lookup,
+      };
+      return lookup;
+    } catch (error) {
+      console.warn(`Injury lookup unavailable: ${error.message}`);
+      return injuryCache.data;
+    } finally {
+      injuryCacheFetchPromise = null;
+    }
+  })();
+
+  return await injuryCacheFetchPromise;
 }
 
 function resolveInjuryForPlayer({ matchedFullName, playerLabel }, injuryLookup) {

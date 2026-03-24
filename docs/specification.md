@@ -177,6 +177,7 @@ Rate limit -ympäristömuuttujat:
 
 - players-stats-compare käyttää cachea dataikkunassa
 - tipsen-summary käyttää omaa cachea (file+seasonId+compareDate+window)
+- injury- ja period3-ranking cacheissa käytetään in-flight pyyntölukitusta, jotta rinnakkaiset pyynnöt eivät tee samaa ulkoista fetchiä yhtä aikaa
 - response cache invalidoituu automaattisesti deployment/version vaihtuessa (startup flush), jotta vanha payload-rakenne ei jää voimaan tuotannossa
 - deploymentin jälkeen cache warmataan automaattisesti taustalla startupissa (`tipsen-summary` force refresh aktiivisella JSON-rosterilähteellä), jotta ensimmäinen käyttäjä ei joudu kylmään hakuun
 - cache-diagnostiikka (`hit`/`miss`) palautetaan `tipsen-summary`-vastaukseen vain kun sekä admin-auth että `debugCache=1` on mukana
@@ -629,3 +630,6 @@ Suositeltu raportointi:
     - Lisätty `express-rate-limit` middleware endpointeille `GET /api/players-stats-compare` ja `POST /api/team-validator`
     - Oletusrajat: players-compare `25/60s`, team-validator `10/60s` per client IP
     - Admin-auth ja sisäiset loopback-kutsut ohittavat rate limitin, jotta backoffice ja sisäiset refresh-polut eivät rikkoudu
+  - **Vaihe B1 (luotettavuus): cache race condition -suojaus:**
+    - Lisätty `getInjuryLookup()`-funktioon in-flight promise-lukitus, jotta samanaikaiset pyynnöt jakavat yhden ESPN-hakukierroksen
+    - Lisätty `buildPeriod3RankingData()`-funktioon cacheKey-kohtainen in-flight deduplikointi, jotta samat ranking-haut eivät käynnisty rinnakkain
