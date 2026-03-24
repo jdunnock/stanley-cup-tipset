@@ -52,6 +52,8 @@
 
     <h1>NHL admin - pelaajatilastot</h1>
 
+    <h2 style="margin:0 0 10px; font-size:18px; border-bottom:2px solid #d0ddcf; padding-bottom:6px;">Veikkauksen hallinta</h2>
+
     <div class="controls">
       <label>
         Kausi (seasonId)
@@ -67,26 +69,11 @@
       </label>
 
       <button id="saveCompetitionTypeBtn" type="button">Tallenna aktiivinen veikkaus</button>
-
-      <label>
-        Vertailupäivä
-        <input id="compareDateInput" type="date" value="2026-01-24" />
-      </label>
-
-      <button id="saveDateBtn" type="button">Tallenna oletuspäivä</button>
-
-      <button id="loadBtn">Hae vertailu</button>
-      <button id="refreshBtn" type="button">Hae datat uudestaan</button>
     </div>
 
     <div class="controls">
       <label>
-        Ranking-ikkuna veikkaukselle
-        <select id="rankingCompetitionTypeSelect">
-          <option value="stanley_cup">Stanley Cup</option>
-          <option value="autumn">Syksyn veikkaus</option>
-        </select>
-      </label>
+        Ranking-ikkuna
 
       <label>
         Ranking from
@@ -100,6 +87,8 @@
 
       <button id="saveRankingWindowBtn" type="button">Tallenna ranking-ikkuna</button>
     </div>
+
+    <div id="rankingWindowInfo" style="margin:-10px 0 12px; font-size:13px; color:#444;">Ranking-ikkuna: -</div>
 
     <div class="controls" style="align-items: flex-start;">
       <div style="min-width: 380px; flex: 1; border: 1px solid #d0ddcf; border-radius: 8px; padding: 12px; background: #f7fcf8;">
@@ -130,8 +119,22 @@
       </div>
     </div>
 
+    <h2 style="margin:28px 0 10px; font-size:18px; border-bottom:2px solid #d0ddcf; padding-bottom:6px;">Tarkistelutyökalu</h2>
+    <p style="margin:0 0 12px; font-size:13px; color:#4d5f50;">Vertailupäivä vaikuttaa vain vertailulaskentaan (delta), ei periodi- tai veikkausasetuksiin.</p>
+
+    <div class="controls">
+      <label>
+        Vertailupäivä
+        <input id="compareDateInput" type="date" value="2026-01-24" />
+      </label>
+
+      <button id="saveDateBtn" type="button">Tallenna oletuspäivä</button>
+
+      <button id="loadBtn">Hae vertailu</button>
+      <button id="refreshBtn" type="button">Hae datat uudestaan</button>
+    </div>
+
     <div id="savedDateInfo" style="margin:-6px 0 12px; font-size:13px; color:#444;">Tallennettu oletuspäivä: 2026-01-24</div>
-    <div id="rankingWindowInfo" style="margin:-10px 0 12px; font-size:13px; color:#444;">Ranking-ikkuna: -</div>
     <div id="fetchInfo" style="margin:-8px 0 10px; font-size:13px; color:#444;">Viimeksi haettu: -</div>
 
     <div id="status">Ladataan tiedostoja…</div>

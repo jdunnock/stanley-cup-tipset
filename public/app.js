@@ -1,7 +1,6 @@
 const seasonInput = document.getElementById("seasonInput");
 const compareDateInput = document.getElementById("compareDateInput");
 const competitionTypeSelect = document.getElementById("competitionTypeSelect");
-const rankingCompetitionTypeSelect = document.getElementById("rankingCompetitionTypeSelect");
 const rankingFromInput = document.getElementById("rankingFromInput");
 const rankingToInput = document.getElementById("rankingToInput");
 const saveDateBtn = document.getElementById("saveDateBtn");
@@ -288,7 +287,6 @@ async function loadSettings() {
 
   const activeCompetitionType = data?.competitionType || "stanley_cup";
   competitionTypeSelect.value = activeCompetitionType;
-  rankingCompetitionTypeSelect.value = activeCompetitionType;
 
   const rankingWindows = data?.rankingWindows || {};
   rankingWindowsState = {
@@ -323,7 +321,6 @@ async function saveCompetitionType() {
   }
 
   competitionTypeSelect.value = data.competitionType;
-  rankingCompetitionTypeSelect.value = data.competitionType;
   rankingWindowsState[data.competitionType] = data.rankingWindow;
   if (data.periodCalendar) {
     periodCalendarsState[data.competitionType] = data.periodCalendar;
@@ -335,7 +332,7 @@ async function saveCompetitionType() {
 }
 
 async function saveRankingWindow() {
-  const competitionType = String(rankingCompetitionTypeSelect.value || "").trim();
+  const competitionType = String(competitionTypeSelect.value || "").trim();
   const rankingFrom = String(rankingFromInput.value || "").trim();
   const rankingTo = String(rankingToInput.value || "").trim();
   const { override, reason } = buildOverridePayload();
@@ -523,15 +520,11 @@ saveCompetitionTypeBtn.addEventListener("click", () => {
 });
 competitionTypeSelect.addEventListener("change", () => {
   const selected = String(competitionTypeSelect.value || "stanley_cup");
-  rankingCompetitionTypeSelect.value = selected;
   applyRankingWindowToInputs(selected);
   renderPeriodWindowInputs(selected);
   refreshSettingsAudit().catch((error) => {
     setStatus(`Audit-lokin haku epäonnistui: ${error.message}`);
   });
-});
-rankingCompetitionTypeSelect.addEventListener("change", () => {
-  applyRankingWindowToInputs(String(rankingCompetitionTypeSelect.value || "stanley_cup"));
 });
 saveRankingWindowBtn.addEventListener("click", () => {
   saveRankingWindow().catch((error) => {
