@@ -30,6 +30,8 @@ Pääsijainnit:
 ### 3.1 Admin-näkymä
 - Excel-tiedoston valinta / upload
 - Vertailupäivän tallennus
+- Vertailupäivä on tarkistus- ja vertailutyökalu (delta nykytilaan), eikä se muuta periodi- tai veikkauskonfiguraatiota
+- Admin UI on ryhmitelty kahteen pääosaan: `Veikkauksen hallinta` ja `Tarkistelutyökalu`
 - Pelaajien pistevertailu
 - Maalivahtien ja muiden pelaajien erottelu omiin osioihin
 - Reconciliation-raportti mismatch-riveille
@@ -614,6 +616,8 @@ Suositeltu raportointi:
     - Period 2→3 validointi: jatkaa nykyisellä logiikalla (Excel-pohjainen tarkistus)
 
 - 2026-03-24
+  - Admin UI:hin lisätty otsikon alle lyhyt johdantoteksti ja korjattu ranking-ikkunaosion markup niin, että aktiivinen veikkaus toimii ainoana ohjaavana valintana
+  - Admin UI:hin lisätty seliteteksti Vertailupäivä-kontrolleihin, jotta käyttötarkoitus on yksiselitteinen (vain vertailulaskenta, ei periodi/veikkauskonfiguraatio)
   - Lisätty kilpailukohtainen ranking-ikkuna-asetus adminiin (käsin asetettava):
     - Uudet endpointit: `POST /api/settings/competition-type` ja `POST /api/settings/ranking-window`
     - `GET /api/settings` palauttaa nyt `competitionType`, aktiivisen `rankingWindow`-objektin sekä kaikkien kilpailujen `rankingWindows`
