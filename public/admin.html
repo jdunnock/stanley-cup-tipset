@@ -59,6 +59,16 @@
       </label>
 
       <label>
+        Aktiivinen veikkaus
+        <select id="competitionTypeSelect">
+          <option value="stanley_cup">Stanley Cup</option>
+          <option value="autumn">Syksyn veikkaus</option>
+        </select>
+      </label>
+
+      <button id="saveCompetitionTypeBtn" type="button">Tallenna aktiivinen veikkaus</button>
+
+      <label>
         Vertailupäivä
         <input id="compareDateInput" type="date" value="2026-01-24" />
       </label>
@@ -69,7 +79,30 @@
       <button id="refreshBtn" type="button">Hae datat uudestaan</button>
     </div>
 
+    <div class="controls">
+      <label>
+        Ranking-ikkuna veikkaukselle
+        <select id="rankingCompetitionTypeSelect">
+          <option value="stanley_cup">Stanley Cup</option>
+          <option value="autumn">Syksyn veikkaus</option>
+        </select>
+      </label>
+
+      <label>
+        Ranking from
+        <input id="rankingFromInput" type="date" value="2025-10-07" />
+      </label>
+
+      <label>
+        Ranking to
+        <input id="rankingToInput" type="date" value="2026-04-15" />
+      </label>
+
+      <button id="saveRankingWindowBtn" type="button">Tallenna ranking-ikkuna</button>
+    </div>
+
     <div id="savedDateInfo" style="margin:-6px 0 12px; font-size:13px; color:#444;">Tallennettu oletuspäivä: 2026-01-24</div>
+    <div id="rankingWindowInfo" style="margin:-10px 0 12px; font-size:13px; color:#444;">Ranking-ikkuna: -</div>
     <div id="fetchInfo" style="margin:-8px 0 10px; font-size:13px; color:#444;">Viimeksi haettu: -</div>
 
     <div id="status">Ladataan tiedostoja…</div>

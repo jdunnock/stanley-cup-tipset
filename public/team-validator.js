@@ -9,6 +9,7 @@ const decisionEl = document.getElementById("decision");
 const errorsListEl = document.getElementById("errorsList");
 const warningsListEl = document.getElementById("warningsList");
 const diagnosticsEl = document.getElementById("diagnostics");
+let activeCompetitionType = "stanley_cup";
 
 function setStatus(text) {
   statusEl.textContent = text;
@@ -51,6 +52,7 @@ async function validateRoster() {
       seasonId: String(seasonIdInput.value || "").trim(),
       rankingFrom: String(rankingFromInput.value || "").trim(),
       rankingTo: String(rankingToInput.value || "").trim(),
+      competitionType: activeCompetitionType,
       rosterText: String(rosterTextInput.value || "").trim(),
       previousRosterFile: "", // Period 1 validation - clean slate (no ownership checks)
     };
@@ -91,4 +93,27 @@ async function validateRoster() {
   }
 }
 
+async function loadValidatorDefaults() {
+  const response = await fetch("/api/settings");
+  if (!response.ok) {
+    return;
+  }
+
+  const data = await response.json();
+  if (data?.competitionType) {
+    activeCompetitionType = String(data.competitionType);
+  }
+
+  const rankingWindow = data?.rankingWindow;
+  if (rankingWindow?.rankingFrom) {
+    rankingFromInput.value = rankingWindow.rankingFrom;
+  }
+  if (rankingWindow?.rankingTo) {
+    rankingToInput.value = rankingWindow.rankingTo;
+  }
+}
+
 validateBtn.addEventListener("click", validateRoster);
+loadValidatorDefaults().catch(() => {
+  // Keep static defaults from HTML if settings endpoint is unavailable.
+});

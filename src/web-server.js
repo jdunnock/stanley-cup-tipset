@@ -49,7 +49,19 @@ const PERIOD3_TEMP_ROSTERS_FILE = "period3-rosters.json";
 const PERIOD1_TEMP_ROSTERS_FILE = "period1-rosters.json";
 const PERIOD3_VALIDATOR_SEASON_ID = "20252026";
 const PERIOD3_VALIDATOR_RANKING_FROM = "2025-10-07";
-const PERIOD3_VALIDATOR_RANKING_TO = "2025-12-26";
+const PERIOD3_VALIDATOR_RANKING_TO = "2026-04-15";
+const SUPPORTED_COMPETITION_TYPES = ["stanley_cup", "autumn"];
+const DEFAULT_COMPETITION_TYPE = "stanley_cup";
+const DEFAULT_COMPETITION_RANKING_WINDOWS = {
+  stanley_cup: {
+    rankingFrom: PERIOD3_VALIDATOR_RANKING_FROM,
+    rankingTo: PERIOD3_VALIDATOR_RANKING_TO,
+  },
+  autumn: {
+    rankingFrom: PERIOD3_VALIDATOR_RANKING_FROM,
+    rankingTo: PERIOD3_VALIDATOR_RANKING_TO,
+  },
+};
 const CRON_JOB_TOKEN = String(process.env.CRON_JOB_TOKEN ?? "").trim();
 const ADMIN_BASIC_USER = String(process.env.ADMIN_BASIC_USER ?? "").trim();
 const ADMIN_BASIC_PASS = String(process.env.ADMIN_BASIC_PASS ?? "").trim();
@@ -238,6 +250,65 @@ function setSetting(key, value) {
       `
     )
     .run(key, value);
+}
+
+function isIsoDate(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value ?? "").trim());
+}
+
+function normalizeCompetitionType(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (SUPPORTED_COMPETITION_TYPES.includes(normalized)) {
+    return normalized;
+  }
+  return "";
+}
+
+function getActiveCompetitionType() {
+  const configured = normalizeCompetitionType(getSetting("competitionType", DEFAULT_COMPETITION_TYPE));
+  return configured || DEFAULT_COMPETITION_TYPE;
+}
+
+function setActiveCompetitionType(competitionType) {
+  setSetting("competitionType", competitionType);
+}
+
+function getRankingWindowSettingKeys(competitionType) {
+  return {
+    from: `rankingFrom.${competitionType}`,
+    to: `rankingTo.${competitionType}`,
+  };
+}
+
+function getRankingWindowForCompetition(competitionType) {
+  const normalizedType = normalizeCompetitionType(competitionType) || DEFAULT_COMPETITION_TYPE;
+  const defaults =
+    DEFAULT_COMPETITION_RANKING_WINDOWS[normalizedType] ?? DEFAULT_COMPETITION_RANKING_WINDOWS[DEFAULT_COMPETITION_TYPE];
+  const keys = getRankingWindowSettingKeys(normalizedType);
+  const rankingFrom = String(getSetting(keys.from, defaults.rankingFrom)).trim();
+  const rankingTo = String(getSetting(keys.to, defaults.rankingTo)).trim();
+  return {
+    competitionType: normalizedType,
+    rankingFrom,
+    rankingTo,
+  };
+}
+
+function setRankingWindowForCompetition({ competitionType, rankingFrom, rankingTo }) {
+  const keys = getRankingWindowSettingKeys(competitionType);
+  setSetting(keys.from, rankingFrom);
+  setSetting(keys.to, rankingTo);
+}
+
+function buildCompetitionRankingWindowsSnapshot() {
+  return SUPPORTED_COMPETITION_TYPES.reduce((acc, type) => {
+    const window = getRankingWindowForCompetition(type);
+    acc[type] = {
+      rankingFrom: window.rankingFrom,
+      rankingTo: window.rankingTo,
+    };
+    return acc;
+  }, {});
 }
 
 function clearResponseCacheOnVersionChange() {
@@ -2291,6 +2362,7 @@ async function validateTeam({
   seasonId,
   rankingFrom,
   rankingTo,
+  competitionType,
   previousRosterData,
   previousRosterFile,
 }) {
@@ -2393,7 +2465,7 @@ async function validateTeam({
   }
 
   const ranking = await buildPeriod3RankingData({
-    fileName: "",
+    fileName: competitionType || "",
     seasonId,
     fromDate: rankingFrom,
     toDate: rankingTo,
@@ -2489,6 +2561,7 @@ async function validateTeam({
         from: rankingFrom,
         to: rankingTo,
       },
+      competitionType: competitionType || "",
     },
   };
 }
@@ -3511,7 +3584,67 @@ app.get("/api/cron/daily-refresh", handleDailyAutoRefreshRequest);
 
 app.get("/api/settings", (_req, res) => {
   const compareDate = getSetting("compareDate", DEFAULT_COMPARE_DATE);
-  res.json({ compareDate });
+  const competitionType = getActiveCompetitionType();
+  const rankingWindow = getRankingWindowForCompetition(competitionType);
+  res.json({
+    compareDate,
+    competitionType,
+    rankingWindow: {
+      rankingFrom: rankingWindow.rankingFrom,
+      rankingTo: rankingWindow.rankingTo,
+    },
+    rankingWindows: buildCompetitionRankingWindowsSnapshot(),
+  });
+});
+
+app.post("/api/settings/competition-type", (req, res) => {
+  const competitionType = normalizeCompetitionType(req.body?.competitionType);
+  if (!competitionType) {
+    res.status(400).json({
+      error: `competitionType must be one of: ${SUPPORTED_COMPETITION_TYPES.join(", ")}`,
+    });
+    return;
+  }
+
+  setActiveCompetitionType(competitionType);
+  const rankingWindow = getRankingWindowForCompetition(competitionType);
+  res.json({
+    competitionType,
+    rankingWindow: {
+      rankingFrom: rankingWindow.rankingFrom,
+      rankingTo: rankingWindow.rankingTo,
+    },
+  });
+});
+
+app.post("/api/settings/ranking-window", (req, res) => {
+  const competitionType = normalizeCompetitionType(req.body?.competitionType);
+  const rankingFrom = String(req.body?.rankingFrom ?? "").trim();
+  const rankingTo = String(req.body?.rankingTo ?? "").trim();
+
+  if (!competitionType) {
+    res.status(400).json({
+      error: `competitionType must be one of: ${SUPPORTED_COMPETITION_TYPES.join(", ")}`,
+    });
+    return;
+  }
+
+  if (!isIsoDate(rankingFrom) || !isIsoDate(rankingTo)) {
+    res.status(400).json({ error: "rankingFrom and rankingTo must be in format YYYY-MM-DD" });
+    return;
+  }
+
+  if (rankingFrom > rankingTo) {
+    res.status(400).json({ error: "rankingFrom must be less than or equal to rankingTo" });
+    return;
+  }
+
+  setRankingWindowForCompetition({ competitionType, rankingFrom, rankingTo });
+  res.json({
+    competitionType,
+    rankingFrom,
+    rankingTo,
+  });
 });
 
 app.get("/api/nyheter/snapshots", (req, res) => {
@@ -3595,8 +3728,17 @@ app.post("/api/team-validator", teamValidatorRateLimiter, async (req, res) => {
     const participantName = String(req.body?.participantName ?? "").trim();
     const rosterText = String(req.body?.rosterText ?? "").trim();
     const seasonId = String(req.body?.seasonId ?? PERIOD3_VALIDATOR_SEASON_ID).trim();
-    const rankingFrom = String(req.body?.rankingFrom ?? PERIOD3_VALIDATOR_RANKING_FROM).trim();
-    const rankingTo = String(req.body?.rankingTo ?? PERIOD3_VALIDATOR_RANKING_TO).trim();
+    const competitionType = normalizeCompetitionType(req.body?.competitionType ?? getActiveCompetitionType());
+    if (!competitionType) {
+      res.status(400).json({
+        ok: false,
+        error: `competitionType must be one of: ${SUPPORTED_COMPETITION_TYPES.join(", ")}`,
+      });
+      return;
+    }
+    const rankingWindow = getRankingWindowForCompetition(competitionType);
+    const rankingFrom = String(req.body?.rankingFrom ?? rankingWindow.rankingFrom).trim();
+    const rankingTo = String(req.body?.rankingTo ?? rankingWindow.rankingTo).trim();
     
     // Check if previousRosterFile was explicitly provided (not undefined)
     const previousRosterFileProvided = req.body?.previousRosterFile !== undefined;
@@ -3617,8 +3759,13 @@ app.post("/api/team-validator", teamValidatorRateLimiter, async (req, res) => {
       return;
     }
 
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(rankingFrom) || !/^\d{4}-\d{2}-\d{2}$/.test(rankingTo)) {
+    if (!isIsoDate(rankingFrom) || !isIsoDate(rankingTo)) {
       res.status(400).json({ ok: false, error: "rankingFrom and rankingTo must be in format YYYY-MM-DD" });
+      return;
+    }
+
+    if (rankingFrom > rankingTo) {
+      res.status(400).json({ ok: false, error: "rankingFrom must be less than or equal to rankingTo" });
       return;
     }
 
@@ -3637,6 +3784,7 @@ app.post("/api/team-validator", teamValidatorRateLimiter, async (req, res) => {
       seasonId,
       rankingFrom,
       rankingTo,
+      competitionType,
       previousRosterData,
       previousRosterFile: previousRosterFileProvided ? previousRosterFile : undefined,
     });

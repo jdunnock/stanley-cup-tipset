@@ -1,13 +1,24 @@
 const seasonInput = document.getElementById("seasonInput");
 const compareDateInput = document.getElementById("compareDateInput");
+const competitionTypeSelect = document.getElementById("competitionTypeSelect");
+const rankingCompetitionTypeSelect = document.getElementById("rankingCompetitionTypeSelect");
+const rankingFromInput = document.getElementById("rankingFromInput");
+const rankingToInput = document.getElementById("rankingToInput");
 const saveDateBtn = document.getElementById("saveDateBtn");
+const saveCompetitionTypeBtn = document.getElementById("saveCompetitionTypeBtn");
+const saveRankingWindowBtn = document.getElementById("saveRankingWindowBtn");
 const loadBtn = document.getElementById("loadBtn");
 const refreshBtn = document.getElementById("refreshBtn");
 const statusEl = document.getElementById("status");
 const rowsEl = document.getElementById("rows");
 const comparePointsHeader = document.getElementById("comparePointsHeader");
 const savedDateInfo = document.getElementById("savedDateInfo");
+const rankingWindowInfo = document.getElementById("rankingWindowInfo");
 const fetchInfo = document.getElementById("fetchInfo");
+let rankingWindowsState = {
+  stanley_cup: { rankingFrom: "", rankingTo: "" },
+  autumn: { rankingFrom: "", rankingTo: "" },
+};
 
 function setStatus(text) {
   statusEl.textContent = text;
@@ -18,6 +29,31 @@ function setSavedDateInfo(dateValue) {
     return;
   }
   savedDateInfo.textContent = `Tallennettu oletuspäivä: ${dateValue || "-"}`;
+}
+
+function toCompetitionLabel(type) {
+  return type === "autumn" ? "Syksyn veikkaus" : "Stanley Cup";
+}
+
+function setRankingWindowInfo(competitionType, rankingWindow) {
+  if (!rankingWindowInfo) {
+    return;
+  }
+  const label = toCompetitionLabel(competitionType);
+  const rankingFrom = rankingWindow?.rankingFrom || "-";
+  const rankingTo = rankingWindow?.rankingTo || "-";
+  rankingWindowInfo.textContent = `${label} ranking-ikkuna: ${rankingFrom} - ${rankingTo}`;
+}
+
+function applyRankingWindowToInputs(competitionType) {
+  const selected = String(competitionType || "stanley_cup");
+  const rankingWindow = rankingWindowsState[selected];
+  if (!rankingWindow) {
+    return;
+  }
+  rankingFromInput.value = rankingWindow.rankingFrom || "";
+  rankingToInput.value = rankingWindow.rankingTo || "";
+  setRankingWindowInfo(selected, rankingWindow);
 }
 
 function setFetchInfo(cache) {
@@ -163,6 +199,69 @@ async function loadSettings() {
     comparePointsHeader.textContent = `P ${data.compareDate}`;
     setSavedDateInfo(data.compareDate);
   }
+
+  const activeCompetitionType = data?.competitionType || "stanley_cup";
+  competitionTypeSelect.value = activeCompetitionType;
+  rankingCompetitionTypeSelect.value = activeCompetitionType;
+
+  const rankingWindows = data?.rankingWindows || {};
+  rankingWindowsState = {
+    stanley_cup: rankingWindows.stanley_cup || data?.rankingWindow || { rankingFrom: "", rankingTo: "" },
+    autumn: rankingWindows.autumn || { rankingFrom: "", rankingTo: "" },
+  };
+  applyRankingWindowToInputs(activeCompetitionType);
+}
+
+async function saveCompetitionType() {
+  const competitionType = String(competitionTypeSelect.value || "").trim();
+  const response = await fetch("/api/settings/competition-type", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ competitionType }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    setStatus(`Aktiivisen veikkauksen tallennus epäonnistui: ${data.error || "Tuntematon virhe"}`);
+    return;
+  }
+
+  competitionTypeSelect.value = data.competitionType;
+  rankingCompetitionTypeSelect.value = data.competitionType;
+  rankingWindowsState[data.competitionType] = data.rankingWindow;
+  applyRankingWindowToInputs(data.competitionType);
+  setStatus(`Aktiivinen veikkaus tallennettu: ${toCompetitionLabel(data.competitionType)}`);
+}
+
+async function saveRankingWindow() {
+  const competitionType = String(rankingCompetitionTypeSelect.value || "").trim();
+  const rankingFrom = String(rankingFromInput.value || "").trim();
+  const rankingTo = String(rankingToInput.value || "").trim();
+
+  const response = await fetch("/api/settings/ranking-window", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ competitionType, rankingFrom, rankingTo }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    setStatus(`Ranking-ikkunan tallennus epäonnistui: ${data.error || "Tuntematon virhe"}`);
+    return;
+  }
+
+  rankingWindowsState[data.competitionType] = {
+    rankingFrom: data.rankingFrom,
+    rankingTo: data.rankingTo,
+  };
+  applyRankingWindowToInputs(data.competitionType);
+  setStatus(
+    `${toCompetitionLabel(data.competitionType)} ranking-ikkuna tallennettu: ${data.rankingFrom} - ${data.rankingTo}`
+  );
 }
 
 async function saveDefaultCompareDate() {
@@ -242,6 +341,19 @@ refreshBtn.addEventListener("click", () => {
 saveDateBtn.addEventListener("click", () => {
   saveDefaultCompareDate().catch((error) => {
     setStatus(`Päivämäärän tallennus epäonnistui: ${error.message}`);
+  });
+});
+saveCompetitionTypeBtn.addEventListener("click", () => {
+  saveCompetitionType().catch((error) => {
+    setStatus(`Aktiivisen veikkauksen tallennus epäonnistui: ${error.message}`);
+  });
+});
+rankingCompetitionTypeSelect.addEventListener("change", () => {
+  applyRankingWindowToInputs(String(rankingCompetitionTypeSelect.value || "stanley_cup"));
+});
+saveRankingWindowBtn.addEventListener("click", () => {
+  saveRankingWindow().catch((error) => {
+    setStatus(`Ranking-ikkunan tallennus epäonnistui: ${error.message}`);
   });
 });
 loadSettings().catch((error) => {

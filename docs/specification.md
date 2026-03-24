@@ -139,6 +139,8 @@ Hyväksymiskriteerit:
 - GET /api/data-readiness
 - GET /api/settings
 - POST /api/settings/compare-date
+- POST /api/settings/competition-type
+- POST /api/settings/ranking-window
 - POST /api/team-validator
   - Vaatii autentikaation: joko admin Basic Auth tai validi `x-cron-token`/`token` (kun `CRON_JOB_TOKEN` on asetettu)
   - Endpointilla on rate limit (oletus: 10 pyyntöä / 60s per client IP; admin-auth ja loopback-kutsut ohittavat rajan)
@@ -510,13 +512,19 @@ Hard fail -säännöt:
 - Maksimissaan 2 pelaajaa samasta nykyisestä NHL-joukkueesta kaikkien 12 pelaajan yli.
 - Et voi valita pelaajaa, joka oli period 2:ssa jollakin toisella osallistujalla, ellei pelaaja ollut myös sinulla period 2:ssa.
 - Ukkopelaajien sijaan sääntö koskee ulkopelaajia (puolustajat + hyökkääjät):
-  - Rankingjakso: 7.10.2025 - 26.12.2025.
+  - Rankingjakso tulee kilpailukohtaisesta asetuksesta (`rankingFrom` - `rankingTo`), jota hallitaan Adminissa ja tallennetaan SQLite-asetuksiin.
   - Rankingjärjestys: pisteet, tasatilanteessa tehdyt maalit.
   - Bandisääntö (1-10, 11-20, 21-30, ...):
     - Jos et käytä ylempää bandia, voit ottaa vastaavasti enemmän seuraavasta bandista.
     - Tarkistus voidaan ilmaista kumulatiivisena ehtona: bandeista 1..m valittujen määrä <= m.
-- Maalivahtien rankingjakso: 7.10.2025 - 26.12.2025, ranking wins.
+- Maalivahtien rankingjakso tulee samasta kilpailukohtaisesta ranking-ikkunasta, ranking wins.
 - Kahden maalivahdin rank-summan on oltava vähintään 30 (esim. #1 + #29 = 30 on sallittu).
+
+Kilpailukohtaiset ranking-ikkuna-asetukset:
+- Tuetut kilpailut: `stanley_cup`, `autumn`.
+- Tallennetaan `app_settings`-tauluun avaimilla `rankingFrom.<competitionType>` ja `rankingTo.<competitionType>`.
+- Aktiivinen kilpailu tallennetaan avaimella `competitionType`.
+- Team-validator käyttää oletuksena aktiivisen kilpailun ranking-ikkunaa, ellei pyyntö overridea arvoja.
 
 Warning-sääntö:
 - Jos pelaajaa ei löydy rankinglistasta, se ei kaada validointia mutta palautetaan warningina.
@@ -588,6 +596,14 @@ Suositeltu raportointi:
     - Period 1 validointi: jättää omistussäännöt väliin (puhtaalta pöydältä)
     - Period 1→2 validointi: voi tarkistaa vastaan `period1-rosters.json`-dataa
     - Period 2→3 validointi: jatkaa nykyisellä logiikalla (Excel-pohjainen tarkistus)
+
+- 2026-03-24
+  - Lisätty kilpailukohtainen ranking-ikkuna-asetus adminiin (käsin asetettava):
+    - Uudet endpointit: `POST /api/settings/competition-type` ja `POST /api/settings/ranking-window`
+    - `GET /api/settings` palauttaa nyt `competitionType`, aktiivisen `rankingWindow`-objektin sekä kaikkien kilpailujen `rankingWindows`
+    - Admin UI (`admin.html` + `app.js`) tukee aktiivisen kilpailun valintaa sekä ranking-ikkunan tallennusta per kilpailu
+  - Team-validator käyttää nyt oletuksena aktiivisen kilpailun ranking-ikkunaa (`/api/settings`), mutta hyväksyy edelleen pyynnön `rankingFrom`/`rankingTo` override-arvot
+  - Team-validatorin backend validoi nyt myös ehdon `rankingFrom <= rankingTo`
   - **Toteutettu lagen-sivun Period 1 -esikatselutila:**
     - Kun `period1-rosters.json.enabled === false` ja osallistujia on olemassa, `/api/tipsen-summary` palauttaa ilmoittautuneet tiimit 0 pisteellä (`rosterSource: "period1_preview"`)
     - Esikatselutila sammuu automaattisesti kun `enabled` asetetaan arvoon `true` — koodimuutosta ei tarvita
