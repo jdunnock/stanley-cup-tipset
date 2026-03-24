@@ -3786,12 +3786,60 @@ function assertStartupSecurityConfig() {
   }
 }
 
+function assertStartupEnvVarValidation() {
+  const numericChecks = [
+    { name: "PORT", value: PORT, min: 1, max: 65535 },
+    { name: "MCP_TOOL_TIMEOUT_MS", value: MCP_TOOL_TIMEOUT_MS, min: 1 },
+    { name: "PLAYER_FETCH_CONCURRENCY", value: PLAYER_FETCH_CONCURRENCY, min: 1 },
+    { name: "MCP_MIN_CALL_INTERVAL_MS", value: MCP_MIN_CALL_INTERVAL_MS, min: 0 },
+    { name: "AUTO_REFRESH_MIN_HOUR_FI", value: AUTO_REFRESH_MIN_HOUR_FI, min: 0, max: 23 },
+    { name: "AUTO_REFRESH_CHECK_INTERVAL_MS", value: AUTO_REFRESH_CHECK_INTERVAL_MS, min: 1 },
+    { name: "STARTUP_CACHE_WARMUP_DELAY_MS", value: STARTUP_CACHE_WARMUP_DELAY_MS, min: 0 },
+    { name: "PLAYERS_COMPARE_RATE_LIMIT_WINDOW_MS", value: PLAYERS_COMPARE_RATE_LIMIT_WINDOW_MS, min: 1 },
+    { name: "PLAYERS_COMPARE_RATE_LIMIT_MAX", value: PLAYERS_COMPARE_RATE_LIMIT_MAX, min: 1 },
+    { name: "TEAM_VALIDATOR_RATE_LIMIT_WINDOW_MS", value: TEAM_VALIDATOR_RATE_LIMIT_WINDOW_MS, min: 1 },
+    { name: "TEAM_VALIDATOR_RATE_LIMIT_MAX", value: TEAM_VALIDATOR_RATE_LIMIT_MAX, min: 1 },
+  ];
+
+  for (const check of numericChecks) {
+    if (Number.isNaN(check.value)) {
+      throw new Error(`Invalid config: ${check.name} must be a valid number, got ${process.env[check.name] || check.value}`);
+    }
+    if (check.min !== undefined && check.value < check.min) {
+      throw new Error(`Invalid config: ${check.name} must be >= ${check.min}, got ${check.value}`);
+    }
+    if (check.max !== undefined && check.value > check.max) {
+      throw new Error(`Invalid config: ${check.name} must be <= ${check.max}, got ${check.value}`);
+    }
+  }
+}
+
 assertStartupSecurityConfig();
+assertStartupEnvVarValidation();
 
 app.listen(PORT, async () => {
-  await fs.mkdir(dataDir, { recursive: true });
+  try {
+    await fs.mkdir(dataDir, { recursive: true });
+    // Verify dataDir is writable by attempting a test write
+    const testFile = path.join(dataDir, `.startup-writeability-check-${Date.now()}`);
+    try {
+      await fs.writeFile(testFile, "");
+      await fs.unlink(testFile);
+    } catch (error) {
+      throw new Error(`Data directory not writable at ${dataDir}: ${error.message}`);
+    }
+  } catch (error) {
+    console.error(`[startup] Failed to verify data directory: ${error.message}`);
+    process.exit(1);
+  }
+
   if (useMcpBridge) {
-    await getMcpClient();
+    try {
+      await getMcpClient();
+    } catch (error) {
+      console.error(`[startup-mcp] Failed to initialize MCP client: ${error.message}`);
+      console.error("[startup-mcp] App will continue but MCP-dependent features will fail at runtime.");
+    }
   }
   console.log(`Web UI running at http://localhost:${PORT}`);
   console.log(`Storage root: ${storageRoot}`);

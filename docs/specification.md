@@ -639,3 +639,9 @@ Suositeltu raportointi:
     - Lisätty `ensureMcpClientReady(timeoutMs)` -funktio, joka odottaa MCP-initialisointia timeoutilla (oletusarvo 30s)
     - Muutettu startup cache warmup kutsumaan `ensureMcpClientReady()` ennen välimuistin lämmitystä, jotta rinnakkaiset pyyntökaaviot eivät yritä käyttää epävalmiita MCP-asiakaita
     - Palautetaan `mcpClientInitialized = false` kun MCP-asiakas epäonnistuu uudelleenyrityksissä, jotta seuraava kutsu voi alustaa uudelleen
+  - **Vaihe B4 (luotettavuus): Startup env var -validointi ja kriittisten polkujen tarkistus:**
+    - Lisätty `assertStartupEnvVarValidation()` -funktio, joka validoi kaikki numeeriset env vars (PORT, timeoutit, intervaalit) oikeiden rajojen sisällä
+    - PORT validoitu välille 1-65535, AUTO_REFRESH_MIN_HOUR_FI välille 0-23, muut timeout/interval-kentät positiivisiksi
+    - Lisätty dataDir:n kirjoitettavuuden tarkistus (testiksi kirjoitetaan ja poistetaan väliaikaistiedosto startup-ajalla)
+    - Parannettuja MCP-initalisointivirheviestejä: jos MCP-asiakas ei pääsy valmiiksi, sovellus jatkaa (non-fatal) mutta kirjoittaa selkeät warning-lokit
+    - Startup epäonnistuu fatal-virheellä jos dataDir ei ole kirjoitettavissa
