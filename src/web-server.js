@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import path from "node:path";
 import { promises as fs } from "node:fs";
 import { mkdirSync } from "node:fs";
@@ -53,6 +54,16 @@ const CRON_JOB_TOKEN = String(process.env.CRON_JOB_TOKEN ?? "").trim();
 const ADMIN_BASIC_USER = String(process.env.ADMIN_BASIC_USER ?? "").trim();
 const ADMIN_BASIC_PASS = String(process.env.ADMIN_BASIC_PASS ?? "").trim();
 const ADMIN_PROTECTION_ENABLED = ADMIN_BASIC_USER.length > 0 && ADMIN_BASIC_PASS.length > 0;
+const PLAYERS_COMPARE_RATE_LIMIT_WINDOW_MS = Number.parseInt(
+  process.env.PLAYERS_COMPARE_RATE_LIMIT_WINDOW_MS ?? "60000",
+  10
+);
+const PLAYERS_COMPARE_RATE_LIMIT_MAX = Number.parseInt(process.env.PLAYERS_COMPARE_RATE_LIMIT_MAX ?? "25", 10);
+const TEAM_VALIDATOR_RATE_LIMIT_WINDOW_MS = Number.parseInt(
+  process.env.TEAM_VALIDATOR_RATE_LIMIT_WINDOW_MS ?? "60000",
+  10
+);
+const TEAM_VALIDATOR_RATE_LIMIT_MAX = Number.parseInt(process.env.TEAM_VALIDATOR_RATE_LIMIT_MAX ?? "10", 10);
 const ESPN_NHL_INJURIES_URL = "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries";
 const appBootedAt = new Date().toISOString();
 const buildTimestamp = process.env.BUILD_TIMESTAMP || process.env.RAILWAY_DEPLOYMENT_CREATED_AT || appBootedAt;
@@ -95,6 +106,57 @@ mkdirSync(path.dirname(settingsDbPath), { recursive: true });
 
 const app = express();
 app.use(express.json());
+
+function getClientIpFromRequest(req) {
+  const forwardedHeader = String(req.headers["x-forwarded-for"] ?? "").trim();
+  const forwardedIp = forwardedHeader.split(",")[0]?.trim();
+  if (forwardedIp) {
+    return forwardedIp;
+  }
+
+  return String(req.ip ?? req.socket?.remoteAddress ?? "").trim();
+}
+
+function isLoopbackIp(ipValue) {
+  const ip = String(ipValue ?? "").trim().toLowerCase();
+  return (
+    ip === "127.0.0.1" ||
+    ip === "::1" ||
+    ip === "::ffff:127.0.0.1" ||
+    ip.startsWith("::ffff:127.0.0.")
+  );
+}
+
+function createEndpointRateLimiter({ windowMs, max, code }) {
+  return rateLimit({
+    windowMs: Math.max(1000, Number.isFinite(windowMs) ? windowMs : 60000),
+    max: Math.max(1, Number.isFinite(max) ? max : 10),
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => {
+      const requestIp = getClientIpFromRequest(req);
+      return isLoopbackIp(requestIp) || hasAdminCredentials(req);
+    },
+    handler: (_req, res) => {
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        code,
+      });
+    },
+  });
+}
+
+const playersCompareRateLimiter = createEndpointRateLimiter({
+  windowMs: PLAYERS_COMPARE_RATE_LIMIT_WINDOW_MS,
+  max: PLAYERS_COMPARE_RATE_LIMIT_MAX,
+  code: "players_compare_rate_limited",
+});
+
+const teamValidatorRateLimiter = createEndpointRateLimiter({
+  windowMs: TEAM_VALIDATOR_RATE_LIMIT_WINDOW_MS,
+  max: TEAM_VALIDATOR_RATE_LIMIT_MAX,
+  code: "team_validator_rate_limited",
+});
 
 let mcpClientPromise = null;
 let mcpThrottleLock = Promise.resolve();
@@ -1191,6 +1253,15 @@ async function warmTipsenCacheOnStartup() {
 }
 function getCronTokenFromRequest(req) {
   return String(req.headers["x-cron-token"] ?? req.query.token ?? "").trim();
+}
+
+function hasTeamValidatorAccess(req) {
+  const requestToken = getCronTokenFromRequest(req);
+  if (CRON_JOB_TOKEN && requestToken === CRON_JOB_TOKEN) {
+    return true;
+  }
+
+  return hasAdminCredentials(req);
 }
 
 function hasNyheterCollectorAccess(req) {
@@ -3391,7 +3462,12 @@ async function handleNyheterCollectRequest(req, res) {
 app.post("/api/nyheter/collect", handleNyheterCollectRequest);
 app.get("/api/nyheter/collect", handleNyheterCollectRequest);
 
-app.post("/api/team-validator", async (req, res) => {
+app.post("/api/team-validator", teamValidatorRateLimiter, async (req, res) => {
+  if (!hasTeamValidatorAccess(req)) {
+    res.status(401).json({ error: "Unauthorized team-validator access" });
+    return;
+  }
+
   try {
     const participantName = String(req.body?.participantName ?? "").trim();
     const rosterText = String(req.body?.rosterText ?? "").trim();
@@ -3475,7 +3551,7 @@ app.post("/api/settings/compare-date", (req, res) => {
   res.json({ compareDate });
 });
 
-app.get("/api/players-stats-compare", async (req, res) => {
+app.get("/api/players-stats-compare", playersCompareRateLimiter, async (req, res) => {
   try {
     const compareDateInput = String(req.query.compareDate ?? "").trim();
     const compareDate = compareDateInput || getSetting("compareDate", DEFAULT_COMPARE_DATE);
@@ -3654,6 +3730,19 @@ app.get("/api/tipsen-summary", async (req, res) => {
   }
 });
 
+function assertStartupSecurityConfig() {
+  const hasAdminUser = ADMIN_BASIC_USER.length > 0;
+  const hasAdminPass = ADMIN_BASIC_PASS.length > 0;
+
+  if (hasAdminUser !== hasAdminPass) {
+    throw new Error(
+      "Invalid admin auth configuration: both ADMIN_BASIC_USER and ADMIN_BASIC_PASS must be set together or both left empty"
+    );
+  }
+}
+
+assertStartupSecurityConfig();
+
 app.listen(PORT, async () => {
   await fs.mkdir(dataDir, { recursive: true });
   if (useMcpBridge) {
@@ -3669,6 +3758,16 @@ app.listen(PORT, async () => {
     useMcpBridge ? "NHL data source: MCP server tools (stdio)" : `NHL data source: direct API (${NHL_API_BASE})`
   );
   console.log(`Admin protection: ${ADMIN_PROTECTION_ENABLED ? "enabled" : "disabled"}`);
+  console.log(
+    `Team-validator access: ${
+      ADMIN_PROTECTION_ENABLED || CRON_JOB_TOKEN
+        ? "requires admin basic auth or x-cron-token"
+        : "locked (configure admin auth or CRON_JOB_TOKEN)"
+    }`
+  );
+  console.log(
+    `Rate limits: /api/players-stats-compare=${PLAYERS_COMPARE_RATE_LIMIT_MAX}/${PLAYERS_COMPARE_RATE_LIMIT_WINDOW_MS}ms, /api/team-validator=${TEAM_VALIDATOR_RATE_LIMIT_MAX}/${TEAM_VALIDATOR_RATE_LIMIT_WINDOW_MS}ms`
+  );
   console.log(`Auto refresh scheduler: ${AUTO_REFRESH_SCHEDULER_ENABLED ? "enabled" : "disabled"}`);
   console.log(`Startup cache warmup: ${STARTUP_CACHE_WARMUP_ENABLED ? "enabled" : "disabled"}`);
   if (STARTUP_CACHE_WARMUP_ENABLED) {

@@ -35,6 +35,7 @@ Pääsijainnit:
 - Reconciliation-raportti mismatch-riveille
 - Mobiilikäytössä admin-sivua ei näytetä
 - Admin-reitit voidaan suojata HTTP Basic Authilla ympäristömuuttujilla (`ADMIN_BASIC_USER`, `ADMIN_BASIC_PASS`)
+- Startup tekee admin-auth konfiguraatiotarkistuksen: `ADMIN_BASIC_USER` ja `ADMIN_BASIC_PASS` pitää olla joko molemmat asetettuina tai molemmat tyhjiä
 
 ### 3.2 Osallistujanäkymä (tipsen)
 - Ruotsinkielinen näkymä
@@ -131,6 +132,7 @@ Hyväksymiskriteerit:
 
 ### 3.4 API-endpointit
 - GET /api/players-stats-compare
+  - Endpointilla on rate limit (oletus: 25 pyyntöä / 60s per client IP; admin-auth ja loopback-kutsut ohittavat rajan)
 - GET /api/tipsen-summary
 - GET /api/nyheter/snapshots
 - GET/POST /api/nyheter/collect
@@ -138,6 +140,14 @@ Hyväksymiskriteerit:
 - GET /api/settings
 - POST /api/settings/compare-date
 - POST /api/team-validator
+  - Vaatii autentikaation: joko admin Basic Auth tai validi `x-cron-token`/`token` (kun `CRON_JOB_TOKEN` on asetettu)
+  - Endpointilla on rate limit (oletus: 10 pyyntöä / 60s per client IP; admin-auth ja loopback-kutsut ohittavat rajan)
+
+Rate limit -ympäristömuuttujat:
+- `PLAYERS_COMPARE_RATE_LIMIT_WINDOW_MS` (oletus `60000`)
+- `PLAYERS_COMPARE_RATE_LIMIT_MAX` (oletus `25`)
+- `TEAM_VALIDATOR_RATE_LIMIT_WINDOW_MS` (oletus `60000`)
+- `TEAM_VALIDATOR_RATE_LIMIT_MAX` (oletus `10`)
 
 ### 3.5 Data readiness -portti (päivän päivitys)
 - Tavoite: estää päivän datapäivitys ennen kuin kaikki päivän NHL-matsit ovat varmasti valmiit.
@@ -612,3 +622,10 @@ Suositeltu raportointi:
     - `collectNyheterSnapshot(...)` käyttää service-funktiota suoraan ilman sisäistä HTTP-kierrosta
     - `forceRefreshTipsenForFile(...)` käyttää service-funktiota suoraan (`forceRefresh: true`) ilman sisäistä HTTP-kierrosta
     - Tulos: Nyheter-keräyksen ja pistelaskennan välinen tekninen riippuvuus kevenee, mutta laskentalogiikka säilyy samana
+  - **Vaihe A (turvallisuus): team-validatorin pääsyrajaukset + admin-auth typo-suojaus:**
+    - `POST /api/team-validator` vaatii nyt joko admin Basic Auth -tunnukset tai validin cron-tokenin (`x-cron-token`/`token`)
+    - Startup kaataa prosessin, jos vain toinen admin-muuttuja on asetettu (`ADMIN_BASIC_USER` ilman `ADMIN_BASIC_PASS` tai päinvastoin)
+  - **Vaihe A3 (turvallisuus): rate limiting kalliille endpoint-kutsuille:**
+    - Lisätty `express-rate-limit` middleware endpointeille `GET /api/players-stats-compare` ja `POST /api/team-validator`
+    - Oletusrajat: players-compare `25/60s`, team-validator `10/60s` per client IP
+    - Admin-auth ja sisäiset loopback-kutsut ohittavat rate limitin, jotta backoffice ja sisäiset refresh-polut eivät rikkoudu
