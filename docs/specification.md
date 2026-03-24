@@ -632,4 +632,5 @@ Suositeltu raportointi:
     - Admin-auth ja sisäiset loopback-kutsut ohittavat rate limitin, jotta backoffice ja sisäiset refresh-polut eivät rikkoudu
   - **Vaihe B1 (luotettavuus): cache race condition -suojaus:**
     - Lisätty `getInjuryLookup()`-funktioon in-flight promise-lukitus, jotta samanaikaiset pyynnöt jakavat yhden ESPN-hakukierroksen
-    - Lisätty `buildPeriod3RankingData()`-funktioon cacheKey-kohtainen in-flight deduplikointi, jotta samat ranking-haut eivät käynnisty rinnakkain
+    - Lisätty `buildPeriod3RankingData()`-funktioon cacheKey-kohtainen in-flight deduplikointi, jotta samat ranking-haut eivät käynnisty rinnakkain  - **Vaihe B2 (luotettavuus): SQLite upsert atomaarisuus:**
+    - Niputettu `saveNyheterSnapshot()`-funktion INSERT + UPDATE-operaatio SQLite-transaktioksi, jotta kaksi rinnakkaista kutsua samalla avaimella ei aiheuta conflict-virhettä

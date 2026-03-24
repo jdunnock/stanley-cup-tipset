@@ -907,25 +907,28 @@ function saveNyheterSnapshot({ snapshotDate, fileName, seasonId, compareDate, pa
     WHERE snapshot_date = ? AND file_name = ? AND season_id = ? AND compare_date = ?
   `;
 
-  try {
-    settingsDb.prepare(insertSql).run(snapshotDate, fileName, seasonId, compareDate, collectedAt, JSON.stringify(payload));
-  } catch (error) {
-    const isUniqueViolation = String(error?.message ?? "").includes("UNIQUE constraint failed");
-    if (!isUniqueViolation) {
-      throw error;
+  const transaction = settingsDb.transaction(() => {
+    try {
+      settingsDb.prepare(insertSql).run(snapshotDate, fileName, seasonId, compareDate, collectedAt, JSON.stringify(payload));
+    } catch (error) {
+      const isUniqueViolation = String(error?.message ?? "").includes("UNIQUE constraint failed");
+      if (!isUniqueViolation) {
+        throw error;
+      }
+
+      if (!allowOverwrite) {
+        throw new NyheterSnapshotConflictError(
+          `Nyheter snapshot already exists for ${snapshotDate} (${fileName}, ${seasonId}, ${compareDate})`
+        );
+      }
+
+      settingsDb
+        .prepare(updateSql)
+        .run(collectedAt, JSON.stringify(payload), snapshotDate, fileName, seasonId, compareDate);
     }
+  });
 
-    if (!allowOverwrite) {
-      throw new NyheterSnapshotConflictError(
-        `Nyheter snapshot already exists for ${snapshotDate} (${fileName}, ${seasonId}, ${compareDate})`
-      );
-    }
-
-    settingsDb
-      .prepare(updateSql)
-      .run(collectedAt, JSON.stringify(payload), snapshotDate, fileName, seasonId, compareDate);
-  }
-
+  transaction();
   return collectedAt;
 }
 
