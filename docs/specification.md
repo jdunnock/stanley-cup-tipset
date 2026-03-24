@@ -652,3 +652,10 @@ Suositeltu raportointi:
     - Uusi `buildPlayerRecord()`: pelaajan record-objektin rakentaja, eristää objektin rakentamisen logiikan
     - getTipsenSummaryPayload kutistui 293 riviltä 180 riville, pääfunktio nyt luettavampi ja ylläpidettävämpi
     - Kaikki ekstraktiot säilyttävät alkuperäisen toiminnallisuuden; ei behavior-muutoksia
+  - **Vaihe C2 (arkkitehtuuri): cache-analyysi — ei toimenpiteitä vaadita:**
+    - Tarkistettu kaikki Map/cache-objektit: per-request-cachekansiot (tipsenTeamCache, tipsenSnapshotCache) ovat GC-automaattisesti siivottavia
+    - `period3ValidatorRankingInFlightByCacheKey` käyttää jo `finally`-blokkia B1-muutoksen jälkeen → ei vuotoriskiä
+  - **Vaihe C3 (turvallisuus/luotettavuus): Content-Type validointi POST-pyynnöille:**
+    - Lisätty globaali Express-middleware `express.json()`:n jälkeen: hylkää POST/PUT-pyynnöt joilla on body mutta `Content-Type != application/json` → HTTP 415
+    - Estää hiljaisen `req.body = undefined` -virhetilat, joissa väärän Content-Type-headerin vuoksi kenttiin tulee fallback-arvoja
+    - Tyhjät POST-pyynnöt (ei bodya, ei Content-Length) läpäisevät tarkistuksen normaalisti → reitti saa käsitellä puuttuvat kentät omilla validaatioillaan (400)

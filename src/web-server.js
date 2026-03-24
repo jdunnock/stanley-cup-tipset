@@ -107,6 +107,25 @@ mkdirSync(path.dirname(settingsDbPath), { recursive: true });
 const app = express();
 app.use(express.json());
 
+// Reject POST/PUT requests with a body but without Content-Type: application/json.
+// express.json() silently skips parsing when Content-Type is wrong, leaving req.body
+// undefined and causing silent field-missing errors rather than noisy client mistakes.
+app.use((req, res, next) => {
+  if (req.method === "POST" || req.method === "PUT") {
+    const hasBody =
+      (req.headers["content-length"] !== undefined && req.headers["content-length"] !== "0") ||
+      req.headers["transfer-encoding"] !== undefined;
+    if (hasBody) {
+      const contentType = String(req.headers["content-type"] ?? "").toLowerCase();
+      if (!contentType.includes("application/json")) {
+        res.status(415).json({ error: "Content-Type must be application/json" });
+        return;
+      }
+    }
+  }
+  next();
+});
+
 function getClientIpFromRequest(req) {
   const forwardedHeader = String(req.headers["x-forwarded-for"] ?? "").trim();
   const forwardedIp = forwardedHeader.split(",")[0]?.trim();
