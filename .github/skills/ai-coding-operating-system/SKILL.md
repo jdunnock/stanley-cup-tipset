@@ -1,3 +1,8 @@
+---
+name: ai-coding-operating-system
+description: "Use when: defining AI coding approach, reviewing before merge, choosing fast vs safe mode, or doing a pre-change best-practice check. Projektin pysyvä AI-työtapa ja perusperiaatteet."
+---
+
 # Skill: AI coding operating system
 
 Tämä on projektin pysyvä AI-työtapa. Tavoite on minimoida "en tiedä mitä en tiedä" -riski.

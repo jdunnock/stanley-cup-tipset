@@ -1,3 +1,8 @@
+---
+name: chat-change-workflow
+description: "Use when: implementing a requested change end-to-end, updating specification, completing git/reporting steps. Aktivoituu kun käyttäjä pyytää tekemään muutoksen workflown mukaan tai viemään tehtävän loppuun asti."
+---
+
 # Skill: Chat-driven change workflow
 
 Tämä skill määrittää oletustoimintatavan tilanteeseen, jossa käyttäjä kertoo chatissä haluamansa muutoksen.
@@ -35,7 +40,7 @@ Oletus on Safe mode:
    - Aja vähintään kohdistettu smoke- tai endpoint-testi.
    - Kirjaa tulos lyhyesti.
    - Käy läpi [AI Quality Gate](docs/AI-QUALITY-GATE.md) ennen commit/push-vaihetta.
-   - Jos mukana on ruotsinkielistä UI-copya, käy läpi myös [Swedish language quality gate](docs/skills/swedish-language-quality-gate.md) ennen commit/push/deploy-vaihetta.
+   - Jos mukana on ruotsinkielistä UI-copya, käy läpi myös [Swedish language quality gate](.github/skills/swedish-quality-gate/SKILL.md) ennen commit/push/deploy-vaihetta.
 
 5. GitHub-toimet
    - Commit viestimallilla `type(scope): what changed`
@@ -60,12 +65,6 @@ Oletus on Safe mode:
   - `feat(api): ...` / `fix(api): ...`
 
 Jos mukana on paikallisia data-/excel-tiedostoja, niitä ei lisätä committiin ilman erillistä pyyntöä.
-
-Main-suojauksessa suositus:
-- vaadi PR ennen mergeä (`Require a pull request before merging`)
-- vaadi vähintään yksi hyväksyntä
-- vaadi status checkit (CI)
-- estä suorat pushit mainiin
 
 ## 5) Definition of Done (DoD)
 

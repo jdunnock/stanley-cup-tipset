@@ -285,6 +285,11 @@ Kun käytät PR:ää, käytä tätä:
 
 ## 7. Muutosloki
 
+- 2026-03-24
+  - Skills siirretty `docs/skills/` → `.github/skills/` VS Code Copilot -taitoina (YAML frontmatter + oikea hakemisto), jotta Copilot lataa ne automaattisesti
+  - `docs/skills/` kansio poistettu kokonaan
+  - Viittaukset päivitetty: nyheter-go-no-go-checklist.md, nyheter-weekly-check-routine.md, specification.md
+
 - 2026-03-13
   - Period 3 validator bugikorjaus: ulkopelaajien ja maalivahtien rankit lasketaan nyt liigatasoisesta pelaajapoolista (ei vain period2-Excelin rajatusta pelaajajoukosta), jotta sijoitukset vastaavat sääntölistaa
   - Period 3 validator parser-parannus: joukkuekenttä hyväksyy nyt myös city/full-name syötteet (esim. `Dallas`) lyhenteiden lisäksi (`DAL`)
@@ -384,19 +389,20 @@ Päätös jatkoon:
 2) Lisää kevyt health endpoint vain deploy-monitorointiin.
 3) Lisää yksi benchmark-komento package.json scripts-kohtaan (tipsen warm/cached).
 
-## 9. Skills (erilliset tiedostot)
+## 9. Skills (.github/skills/)
 
-Projektin workflow-skillit pidetään erillisinä dokumentteina kansiossa `docs/skills`.
+Projektin workflow-skillit ovat VS Code Copilot -taitoina kansiossa `.github/skills/`. Copilot lataa ne automaattisesti kun tilanne vastaa skillin `description`-kenttää.
 
 Nykyiset skillit:
-- [Chat-driven change workflow](docs/skills/chat-change-workflow.md)
-- [AI coding operating system](docs/skills/ai-coding-operating-system.md)
+- [Chat-driven change workflow](.github/skills/chat-change-workflow/SKILL.md)
+- [AI coding operating system](.github/skills/ai-coding-operating-system/SKILL.md)
 - [AI Quality Gate](docs/AI-QUALITY-GATE.md)
-- [AI prompt templates](docs/skills/ai-prompt-templates.md)
+- [AI prompt templates](.github/skills/ai-prompt-templates/SKILL.md)
+- [Swedish language quality gate](.github/skills/swedish-quality-gate/SKILL.md)
 
 Periaate:
 - [docs/specification.md](docs/specification.md) määrittää tuotteen suunnan ja päätökset.
-- Skill-tiedostot määrittävät operatiivisen toteutusprosessin.
+- Skill-tiedostot `.github/skills/` määrittävät operatiivisen toteutusprosessin.
 
 ## 10. Reusable template repo uusiin projekteihin
 
@@ -404,7 +410,6 @@ Tämän projektin ulkopuolinen reusable bootstrap pidetään jatkossa keskitetty
 
 Käyttöperiaate:
 - ylläpidä reusable promptit, skillit ja specification-template keskitetysti template-repossa
-- pidä tämän repositorion `docs/skills/` vain tämän projektin operatiivisena ohjeistuksena
 - tuo uuteen projektiin vain tarvittavat tiedostot template-reposta bootstrap-vaiheessa
 
 ## 11. Period 3 -siirtymä (toteutettu malli + operointi)

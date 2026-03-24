@@ -25,7 +25,7 @@ Tämä checklist on lauantain ensimmäistä `Nyheter`-julkaisua varten.
    - `Skadeläget`
    - `Bottenstriden`
 10. [ ] Jokainen nosto on datalla perusteltu (ei spekulaatiota ilman merkintää)
-11. [ ] Swedish language quality gate ajettu ja hyväksytty: [docs/skills/swedish-language-quality-gate.md](docs/skills/swedish-language-quality-gate.md)
+11. [ ] Swedish language quality gate ajettu ja hyväksytty: [.github/skills/swedish-quality-gate/SKILL.md](.github/skills/swedish-quality-gate/SKILL.md)
 12. [ ] Kriittiset ruotsin copy-kohdat tarkistettu erikseen:
    - en/ett-muodot oikein
    - å/ä/ö-merkit säilyvät

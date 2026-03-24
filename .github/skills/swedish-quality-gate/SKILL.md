@@ -1,3 +1,8 @@
+---
+name: swedish-quality-gate
+description: "Use when: modifying Swedish-language UI copy in nyheter.js, nyheter.html, or specification.md. Prevents language errors before publish."
+---
+
 # Skill: Swedish language quality gate (Nyheter)
 
 Tämän skillin tavoite on estää ruotsinkieliset kieli- ja merkitysvirheet ennen julkaisua.

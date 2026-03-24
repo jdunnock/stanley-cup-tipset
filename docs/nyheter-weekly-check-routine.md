@@ -51,7 +51,7 @@ Aja sen jälkeen viikkotsekki uudelleen.
 
 ## 4.1) Ruotsin kielen quality gate (pakollinen ennen push/deploy)
 
-- Aja tarkistus skillin mukaan: [docs/skills/swedish-language-quality-gate.md](docs/skills/swedish-language-quality-gate.md)
+- Aja tarkistus skillin mukaan: [.github/skills/swedish-quality-gate/SKILL.md](.github/skills/swedish-quality-gate/SKILL.md)
 - Tarkista vähintään:
   - en/ett-muodot oikein (esim. draglok)
   - typot ja termin johdonmukaisuus
@@ -74,7 +74,7 @@ Ennen julkaisua tehdään aina lyhyt katselmointi sinun kanssa.
 Julkaisuehdot:
 
 - Uutiskirjeen lopullinen teksti on katselmoitu
-- Swedish quality gate on ajettu ja hyväksytty ([docs/skills/swedish-language-quality-gate.md](docs/skills/swedish-language-quality-gate.md))
+- Swedish quality gate on ajettu ja hyväksytty ([.github/skills/swedish-quality-gate/SKILL.md](.github/skills/swedish-quality-gate/SKILL.md))
 - Maininta period 2:n viimeisistä lauantai-illan otteluista on mukana
 - Maininta period 3:n alkamisesta huomenna (15.3) on mukana
 - Julkaisu tehdään vasta sinun eksplisiittisen "ok julkaisuun" -hyväksynnän jälkeen
