@@ -119,7 +119,7 @@ Hyväksymiskriteerit:
 - Nyheter käyttää viikkotilastotilaa aina kun endpointista löytyy vähintään kaksi snapshotia noin viikon välein (latest + baseline noin 7 päivää aiemmin)
 - Viikkotilassa `Raketer`, `Långsammaste klättrare` ja `Påverkan per deltagare` lasketaan snapshot-deltana (`latest - baseline`), ja otsikot vaihtuvat viikkokontekstiin
 - Ennen kuin viikkobaseline on saatavilla, sivu pysyy perioditilassa (selkeästi merkittynä), jotta lukijalle ei synny väärää viikkotulkintaa
-- Nyheter-snapshot-keräys on pausella kunnes period 3 -Excel on saatavilla (joukkueet tiedossa); tämän jälkeen viikkosnapshotien keräys jatkuu normaalisti
+- Nyheter-snapshot-keräys on pausella kunnes period 3 -JSON-rosteri on saatavilla (`period3-rosters.json`), jonka jälkeen keräys jatkuu normaalisti
 - Osiota `Redaktionens blinkning` ei näytetä tällä julkaisukierroksella
 - Nyheter-avauksessa mainitaan period 3:n käynnistyminen (julkaisukierros 14.3.2026: "I morgon startar period 3")
 - Osio `Inför nästa vecka` poistetaan Nyheter-näkymästä, koska se ei tuo lisäarvoa suhteessa muihin osioihin
@@ -132,14 +132,12 @@ Hyväksymiskriteerit:
 ### 3.4 API-endpointit
 - GET /api/players-stats-compare
 - GET /api/tipsen-summary
-- GET /api/spelarna-reconciliation
 - GET /api/nyheter/snapshots
 - GET/POST /api/nyheter/collect
 - GET /api/data-readiness
 - GET /api/settings
 - POST /api/settings/compare-date
-- GET /api/excel-files
-- POST /api/upload-excel
+- POST /api/team-validator
 
 ### 3.5 Data readiness -portti (päivän päivitys)
 - Tavoite: estää päivän datapäivitys ennen kuin kaikki päivän NHL-matsit ovat varmasti valmiit.
@@ -157,11 +155,11 @@ Hyväksymiskriteerit:
 - Ajoehdot (ellei `force=true`):
   - Helsingin kellonaika vähintään `AUTO_REFRESH_MIN_HOUR_FI` (oletus 9)
   - kohdepäivä on oletuksena `eilinen` Helsingin päivämäärästä (US-illan NHL-pelit)
-  - jos kohdepäivä on `2026-03-15` tai myöhemmin, ajo blokataan kunnes period 3 Excel löytyy (filename sisältää `period3` / `period 3`)
+  - jos kohdepäivä on `2026-03-15` tai myöhemmin, ajo blokataan kunnes period 3 rosterilähde on käytettävissä (`period3-rosters.json`)
   - samaa päivää ei ole jo onnistuneesti ajettu (`autoRefreshLastSuccessDate`)
   - `data-readiness` palauttaa `ready=true`
 - Toteutus:
-  - endpoint ajaa `tipsen-summary?forceRefresh=true` kaikille löydetyille Excel-tiedostoille
+  - endpoint ajaa `tipsen-summary?forceRefresh=true` aktiivisella rosterilähteellä (JSON-only)
   - onnistuneesta ajosta talletetaan `autoRefreshLastSuccessDate` + `autoRefreshLastRunAt`
   - jos `CRON_JOB_TOKEN` on asetettu, endpoint vaatii `x-cron-token` arvon
 
@@ -170,7 +168,7 @@ Hyväksymiskriteerit:
 - players-stats-compare käyttää cachea dataikkunassa
 - tipsen-summary käyttää omaa cachea (file+seasonId+compareDate+window)
 - response cache invalidoituu automaattisesti deployment/version vaihtuessa (startup flush), jotta vanha payload-rakenne ei jää voimaan tuotannossa
-- deploymentin jälkeen cache warmataan automaattisesti taustalla startupissa (`tipsen-summary` force refresh löydetyille Excel-tiedostoille), jotta ensimmäinen käyttäjä ei joudu kylmään hakuun
+- deploymentin jälkeen cache warmataan automaattisesti taustalla startupissa (`tipsen-summary` force refresh aktiivisella JSON-rosterilähteellä), jotta ensimmäinen käyttäjä ei joudu kylmään hakuun
 - cache-diagnostiikka (`hit`/`miss`) palautetaan `tipsen-summary`-vastaukseen vain kun sekä admin-auth että `debugCache=1` on mukana
 - tipsen initial load ei pakota forceRefreshiä
 - frontin renderöintiä kevennetty (Map lookup + DocumentFragment)
@@ -433,10 +431,10 @@ Period 3:ssa käytetään eri sijoituspisteitä kuin periodeissa 1-2:
 
 3) Admin- ja operointipolku
 - Aktiivinen periodi ohjataan `compareDate` arvolla (`POST /api/settings/compare-date`).
-- Käyttöönottotarkistus tehdään `tipsen-summary` vastauksen kentästä `rosterSource` (`excel` tai `temporary_period3_rosters`).
+- Käyttöönottotarkistus tehdään `tipsen-summary` vastauksen kentästä `rosterSource` (`period1_preview`, `temporary_period1_rosters` tai `temporary_period3_rosters`).
 
 4) Ajastus ja readiness
-- Päivittäinen auto refresh säilyy, mutta period 3 rajan jälkeen ajo estyy kunnes period 3 rosterilähde on käytettävissä (Excel tai temporary JSON).
+- Päivittäinen auto refresh säilyy, mutta period 3 rajan jälkeen ajo estyy kunnes period 3 rosterilähde on käytettävissä (`period3-rosters.json`).
 - Periodirajan vaihto on erillinen operatiivinen toimenpide (ei pelkkä päivittäinen refresh).
 
 ### 11.5 Tehdyt päätökset

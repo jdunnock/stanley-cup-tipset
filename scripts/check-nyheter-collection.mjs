@@ -1,5 +1,4 @@
 const baseUrl = String(process.env.BASE_URL || "https://nhl-stats-production.up.railway.app").replace(/\/$/, "");
-const fileName = String(process.env.EXCEL_FILE || "NHL tipset 2026 jan-apr period2.xlsx");
 const seasonId = String(process.env.SEASON_ID || "20252026");
 const snapshotsLimit = Number.parseInt(String(process.env.SNAPSHOTS_LIMIT || "14"), 10);
 
@@ -33,10 +32,10 @@ async function fetchJson(url, options = {}) {
 }
 
 async function run() {
-  const snapshotsUrl = `${baseUrl}/api/nyheter/snapshots?file=${encodeURIComponent(fileName)}&seasonId=${encodeURIComponent(
+  const snapshotsUrl = `${baseUrl}/api/nyheter/snapshots?seasonId=${encodeURIComponent(
     seasonId
   )}&limit=${encodeURIComponent(String(snapshotsLimit))}`;
-  const tipsenUrl = `${baseUrl}/api/tipsen-summary?file=${encodeURIComponent(fileName)}&seasonId=${encodeURIComponent(seasonId)}`;
+  const tipsenUrl = `${baseUrl}/api/tipsen-summary?seasonId=${encodeURIComponent(seasonId)}`;
 
   const [snapshotsData, tipsenData] = await Promise.all([
     fetchJson(snapshotsUrl),
@@ -51,7 +50,6 @@ async function run() {
 
   console.log("Nyheter weekly check");
   console.log(`base_url: ${baseUrl}`);
-  console.log(`file: ${fileName}`);
   console.log(`season: ${seasonId}`);
   console.log(`snapshots_total: ${snapshots.length}`);
 

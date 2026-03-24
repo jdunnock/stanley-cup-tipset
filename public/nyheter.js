@@ -1,4 +1,3 @@
-const DEFAULT_FILE = "NHL tipset 2026 jan-apr period2.xlsx";
 const DEFAULT_SEASON_ID = "20252026";
 const PERIOD3_START_DATE = "2026-03-15";
 
@@ -414,7 +413,6 @@ async function loadNyheterData() {
     }
 
     const params = new URLSearchParams({
-      file: DEFAULT_FILE,
       seasonId: DEFAULT_SEASON_ID,
       limit: "21",
     });
