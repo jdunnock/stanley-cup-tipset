@@ -1335,6 +1335,11 @@ function getCronTokenFromRequest(req) {
 }
 
 function hasTeamValidatorAccess(req) {
+  // Open access when no security is configured at all
+  if (!ADMIN_PROTECTION_ENABLED && !CRON_JOB_TOKEN) {
+    return true;
+  }
+
   const requestToken = getCronTokenFromRequest(req);
   if (CRON_JOB_TOKEN && requestToken === CRON_JOB_TOKEN) {
     return true;
