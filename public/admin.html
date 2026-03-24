@@ -101,6 +101,35 @@
       <button id="saveRankingWindowBtn" type="button">Tallenna ranking-ikkuna</button>
     </div>
 
+    <div class="controls" style="align-items: flex-start;">
+      <div style="min-width: 380px; flex: 1; border: 1px solid #d0ddcf; border-radius: 8px; padding: 12px; background: #f7fcf8;">
+        <h2 style="margin:0 0 8px; font-size:16px;">Periodikalenteri</h2>
+        <p style="margin:0 0 10px; font-size:13px; color:#4d5f50;">Määritä periodi-ikkunat valitulle veikkaukselle ennen joukkueiden syöttöä.</p>
+        <div id="periodWindowsContainer" style="display:grid; gap:8px;"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+          <button id="savePeriodWindowsBtn" type="button">Tallenna periodi-ikkunat</button>
+          <button id="initializeSetupBtn" type="button">Merkitse initialized</button>
+          <button id="lockSetupBtn" type="button">Lukitse setup</button>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:10px;">
+          <label style="flex-direction:row; align-items:center; gap:6px;">
+            <input id="overrideToggle" type="checkbox" />
+            Override (vaatii Basic Auth)
+          </label>
+          <label style="min-width:220px;">
+            Override reason
+            <input id="overrideReasonInput" placeholder="Pakollinen perustelu overrideen" />
+          </label>
+        </div>
+        <div id="setupInfo" style="margin-top:8px; font-size:13px; color:#334538;">Setup state: -</div>
+      </div>
+      <div style="min-width: 360px; flex: 1; border: 1px solid #d0ddcf; border-radius: 8px; padding: 12px; background: #f7fcf8;">
+        <h2 style="margin:0 0 8px; font-size:16px;">Asetusmuutosten audit</h2>
+        <button id="refreshAuditBtn" type="button" style="margin-bottom:8px;">Päivitä audit-loki</button>
+        <pre id="auditLog" style="margin:0; background:#fff; border:1px solid #d8e7da; border-radius:8px; padding:10px; max-height:220px; overflow:auto;">-</pre>
+      </div>
+    </div>
+
     <div id="savedDateInfo" style="margin:-6px 0 12px; font-size:13px; color:#444;">Tallennettu oletuspäivä: 2026-01-24</div>
     <div id="rankingWindowInfo" style="margin:-10px 0 12px; font-size:13px; color:#444;">Ranking-ikkuna: -</div>
     <div id="fetchInfo" style="margin:-8px 0 10px; font-size:13px; color:#444;">Viimeksi haettu: -</div>

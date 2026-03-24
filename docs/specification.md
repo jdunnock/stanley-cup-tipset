@@ -138,9 +138,12 @@ Hyväksymiskriteerit:
 - GET/POST /api/nyheter/collect
 - GET /api/data-readiness
 - GET /api/settings
+- GET /api/settings/audit
 - POST /api/settings/compare-date
 - POST /api/settings/competition-type
 - POST /api/settings/ranking-window
+- POST /api/settings/period-windows
+- POST /api/settings/setup-action
 - POST /api/team-validator
   - Vaatii autentikaation: joko admin Basic Auth tai validi `x-cron-token`/`token` (kun `CRON_JOB_TOKEN` on asetettu)
   - Endpointilla on rate limit (oletus: 10 pyyntöä / 60s per client IP; admin-auth ja loopback-kutsut ohittavat rajan)
@@ -526,6 +529,19 @@ Kilpailukohtaiset ranking-ikkuna-asetukset:
 - Aktiivinen kilpailu tallennetaan avaimella `competitionType`.
 - Team-validator käyttää oletuksena aktiivisen kilpailun ranking-ikkunaa, ellei pyyntö overridea arvoja.
 
+Periodikalenterin hallittu alustus (Batch 1):
+- Periodi-ikkunat tallennetaan kilpailukohtaisesti avaimella `periodWindows.<competitionType>`.
+- Setup-lifecycle: `draft` -> `initialized` -> `locked`.
+- Lukituksen metadata tallennetaan avaimiin `periodWindowsLockedAt.<competitionType>` ja `periodWindowsLockedBy.<competitionType>`.
+- Periodi-ikkunoiden validointi tallennuksessa:
+  - periodimäärä vastaa kilpailua (`stanley_cup`=2, `autumn`=3)
+  - periodinumerot ovat jatkuvat (1..N), uniikit ja aikajärjestys looginen
+  - yksi final-periodi ja sen on oltava viimeinen periodi
+  - ei overlappeja eikä gappeja periodien välillä
+- Locked-tilassa periodi- ja ranking-asetusten muokkaus estetään ilman explicit overridea.
+- Override sallitaan vain admin Basic Auth -tunnuksilla ja `override=true` lipulla.
+- Kaikista setup/ranking/calendar muutoksista kirjoitetaan audit-loki tauluun `settings_audit`.
+
 Warning-sääntö:
 - Jos pelaajaa ei löydy rankinglistasta, se ei kaada validointia mutta palautetaan warningina.
 
@@ -604,6 +620,14 @@ Suositeltu raportointi:
     - Admin UI (`admin.html` + `app.js`) tukee aktiivisen kilpailun valintaa sekä ranking-ikkunan tallennusta per kilpailu
   - Team-validator käyttää nyt oletuksena aktiivisen kilpailun ranking-ikkunaa (`/api/settings`), mutta hyväksyy edelleen pyynnön `rankingFrom`/`rankingTo` override-arvot
   - Team-validatorin backend validoi nyt myös ehdon `rankingFrom <= rankingTo`
+  - Toteutettu Batch 1 periodikalenterin hallintakerros:
+    - Uudet endpointit: `GET /api/settings/audit`, `POST /api/settings/period-windows`, `POST /api/settings/setup-action`
+    - Setup-lifecycle (`draft` -> `initialized` -> `locked`) ja lock-metadatan persistointi kilpailukohtaisesti
+    - Periodi-ikkunoiden tiukka validointi (periodimäärä, final-periodi, järjestys, no overlap/gap)
+    - Locked-tilassa ranking- ja periodimuutokset estetään ilman `override=true`
+    - Override hyväksytään vain admin Basic Auth -tunnuksilla
+    - Kaikki settings-muutokset auditoidaan tauluun `settings_audit`
+    - Admin UI:hin lisätty periodikalenterin syöttö, setup action -napit ja audit-lokin näkymä
   - **Toteutettu lagen-sivun Period 1 -esikatselutila:**
     - Kun `period1-rosters.json.enabled === false` ja osallistujia on olemassa, `/api/tipsen-summary` palauttaa ilmoittautuneet tiimit 0 pisteellä (`rosterSource: "period1_preview"`)
     - Esikatselutila sammuu automaattisesti kun `enabled` asetetaan arvoon `true` — koodimuutosta ei tarvita

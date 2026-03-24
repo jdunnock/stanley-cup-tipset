@@ -62,6 +62,11 @@ const DEFAULT_COMPETITION_RANKING_WINDOWS = {
     rankingTo: PERIOD3_VALIDATOR_RANKING_TO,
   },
 };
+const EXPECTED_PERIOD_COUNT_BY_COMPETITION = {
+  stanley_cup: 2,
+  autumn: 3,
+};
+const COMPETITION_SETUP_STATES = ["draft", "initialized", "locked"];
 const CRON_JOB_TOKEN = String(process.env.CRON_JOB_TOKEN ?? "").trim();
 const ADMIN_BASIC_USER = String(process.env.ADMIN_BASIC_USER ?? "").trim();
 const ADMIN_BASIC_PASS = String(process.env.ADMIN_BASIC_PASS ?? "").trim();
@@ -235,6 +240,20 @@ settingsDb.exec(`
   )
 `);
 
+settingsDb.exec(`
+  CREATE TABLE IF NOT EXISTS settings_audit (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    competition_type TEXT NOT NULL,
+    setting_key TEXT NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    override_used INTEGER NOT NULL DEFAULT 0,
+    reason TEXT
+  )
+`);
+
 function getSetting(key, fallback = "") {
   const row = settingsDb.prepare("SELECT value FROM app_settings WHERE key = ?").get(key);
   return row?.value ?? fallback;
@@ -306,6 +325,279 @@ function buildCompetitionRankingWindowsSnapshot() {
     acc[type] = {
       rankingFrom: window.rankingFrom,
       rankingTo: window.rankingTo,
+    };
+    return acc;
+  }, {});
+}
+
+function getExpectedPeriodCount(competitionType) {
+  const normalizedType = normalizeCompetitionType(competitionType) || DEFAULT_COMPETITION_TYPE;
+  return EXPECTED_PERIOD_COUNT_BY_COMPETITION[normalizedType] ?? EXPECTED_PERIOD_COUNT_BY_COMPETITION[DEFAULT_COMPETITION_TYPE];
+}
+
+function getPeriodWindowsSettingKey(competitionType) {
+  return `periodWindows.${competitionType}`;
+}
+
+function getSetupStateSettingKey(competitionType) {
+  return `setupState.${competitionType}`;
+}
+
+function getLockedAtSettingKey(competitionType) {
+  return `periodWindowsLockedAt.${competitionType}`;
+}
+
+function getLockedBySettingKey(competitionType) {
+  return `periodWindowsLockedBy.${competitionType}`;
+}
+
+function normalizeSetupState(value) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (COMPETITION_SETUP_STATES.includes(normalized)) {
+    return normalized;
+  }
+  return "draft";
+}
+
+function parseJsonSetting(key, fallback) {
+  const raw = String(getSetting(key, "")).trim();
+  if (!raw) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function setJsonSetting(key, value) {
+  setSetting(key, JSON.stringify(value));
+}
+
+function addDaysToIsoDate(dateValue, days) {
+  const base = dateFromParts(dateValue);
+  base.setUTCDate(base.getUTCDate() + days);
+  return formatDateUTC(base);
+}
+
+function normalizeAndValidatePeriodWindows(periodWindows, competitionType) {
+  const expectedCount = getExpectedPeriodCount(competitionType);
+  if (!Array.isArray(periodWindows)) {
+    throw new Error("periodWindows must be an array");
+  }
+
+  if (periodWindows.length !== expectedCount) {
+    throw new Error(`periodWindows must contain exactly ${expectedCount} periods`);
+  }
+
+  const normalized = periodWindows.map((item, index) => {
+    const periodNumber = Number.parseInt(String(item?.periodNumber ?? index + 1), 10);
+    const startDate = String(item?.startDate ?? "").trim();
+    const endDate = String(item?.endDate ?? "").trim();
+    const label = String(item?.label ?? `P${periodNumber}`).trim() || `P${periodNumber}`;
+    const isFinal = Boolean(item?.isFinal);
+
+    if (!Number.isInteger(periodNumber) || periodNumber < 1 || periodNumber > expectedCount) {
+      throw new Error(`periodNumber must be between 1 and ${expectedCount}`);
+    }
+    if (!isIsoDate(startDate) || !isIsoDate(endDate)) {
+      throw new Error(`Period ${periodNumber}: startDate and endDate must be in format YYYY-MM-DD`);
+    }
+    if (startDate > endDate) {
+      throw new Error(`Period ${periodNumber}: startDate must be less than or equal to endDate`);
+    }
+
+    return {
+      periodNumber,
+      label,
+      startDate,
+      endDate,
+      isFinal,
+    };
+  });
+
+  const byPeriodNumber = new Set(normalized.map((item) => item.periodNumber));
+  if (byPeriodNumber.size !== expectedCount) {
+    throw new Error("periodNumber values must be unique");
+  }
+
+  const sortedByPeriod = normalized.slice().sort((left, right) => left.periodNumber - right.periodNumber);
+  for (let index = 0; index < sortedByPeriod.length; index += 1) {
+    const expectedPeriodNumber = index + 1;
+    if (sortedByPeriod[index].periodNumber !== expectedPeriodNumber) {
+      throw new Error(`periodNumber sequence must be continuous from 1 to ${expectedCount}`);
+    }
+  }
+
+  const finalPeriods = sortedByPeriod.filter((item) => item.isFinal);
+  if (finalPeriods.length !== 1 || finalPeriods[0].periodNumber !== expectedCount) {
+    throw new Error(`Exactly one final period is required, and it must be period ${expectedCount}`);
+  }
+
+  for (let index = 1; index < sortedByPeriod.length; index += 1) {
+    const previous = sortedByPeriod[index - 1];
+    const current = sortedByPeriod[index];
+    const expectedStart = addDaysToIsoDate(previous.endDate, 1);
+
+    if (current.startDate < expectedStart) {
+      throw new Error(`Period ${current.periodNumber} overlaps with period ${previous.periodNumber}`);
+    }
+
+    if (current.startDate > expectedStart) {
+      throw new Error(`Gap detected between period ${previous.periodNumber} and period ${current.periodNumber}`);
+    }
+  }
+
+  return sortedByPeriod;
+}
+
+function getPeriodWindowsForCompetition(competitionType) {
+  const normalizedType = normalizeCompetitionType(competitionType) || DEFAULT_COMPETITION_TYPE;
+  const key = getPeriodWindowsSettingKey(normalizedType);
+  const periodWindows = parseJsonSetting(key, []);
+  return Array.isArray(periodWindows) ? periodWindows : [];
+}
+
+function setPeriodWindowsForCompetition(competitionType, periodWindows) {
+  const normalizedType = normalizeCompetitionType(competitionType) || DEFAULT_COMPETITION_TYPE;
+  const key = getPeriodWindowsSettingKey(normalizedType);
+  setJsonSetting(key, periodWindows);
+}
+
+function getSetupStateForCompetition(competitionType) {
+  const normalizedType = normalizeCompetitionType(competitionType) || DEFAULT_COMPETITION_TYPE;
+  const key = getSetupStateSettingKey(normalizedType);
+  return normalizeSetupState(getSetting(key, "draft"));
+}
+
+function setSetupStateForCompetition(competitionType, setupState) {
+  const normalizedType = normalizeCompetitionType(competitionType) || DEFAULT_COMPETITION_TYPE;
+  const key = getSetupStateSettingKey(normalizedType);
+  setSetting(key, normalizeSetupState(setupState));
+}
+
+function getLockMetadataForCompetition(competitionType) {
+  const normalizedType = normalizeCompetitionType(competitionType) || DEFAULT_COMPETITION_TYPE;
+  return {
+    lockedAt: String(getSetting(getLockedAtSettingKey(normalizedType), "")).trim(),
+    lockedBy: String(getSetting(getLockedBySettingKey(normalizedType), "")).trim(),
+  };
+}
+
+function setLockMetadataForCompetition(competitionType, { lockedAt, lockedBy }) {
+  const normalizedType = normalizeCompetitionType(competitionType) || DEFAULT_COMPETITION_TYPE;
+  setSetting(getLockedAtSettingKey(normalizedType), String(lockedAt ?? "").trim());
+  setSetting(getLockedBySettingKey(normalizedType), String(lockedBy ?? "").trim());
+}
+
+function appendSettingsAuditEntry({ actor, competitionType, settingKey, oldValue, newValue, overrideUsed, reason }) {
+  settingsDb
+    .prepare(
+      `
+        INSERT INTO settings_audit (
+          created_at,
+          actor,
+          competition_type,
+          setting_key,
+          old_value,
+          new_value,
+          override_used,
+          reason
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `
+    )
+    .run(
+      new Date().toISOString(),
+      String(actor ?? "unknown"),
+      String(competitionType ?? ""),
+      String(settingKey ?? ""),
+      oldValue === undefined || oldValue === null ? null : String(oldValue),
+      newValue === undefined || newValue === null ? null : String(newValue),
+      overrideUsed ? 1 : 0,
+      String(reason ?? "").trim() || null
+    );
+}
+
+function listSettingsAuditEntries({ competitionType, limit = 30 } = {}) {
+  const normalizedLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 200) : 30;
+  const normalizedType = normalizeCompetitionType(competitionType);
+
+  if (normalizedType) {
+    return settingsDb
+      .prepare(
+        `
+          SELECT id, created_at, actor, competition_type, setting_key, old_value, new_value, override_used, reason
+          FROM settings_audit
+          WHERE competition_type = ?
+          ORDER BY id DESC
+          LIMIT ?
+        `
+      )
+      .all(normalizedType, normalizedLimit);
+  }
+
+  return settingsDb
+    .prepare(
+      `
+        SELECT id, created_at, actor, competition_type, setting_key, old_value, new_value, override_used, reason
+        FROM settings_audit
+        ORDER BY id DESC
+        LIMIT ?
+      `
+    )
+    .all(normalizedLimit);
+}
+
+function getActorFromRequest(req) {
+  const credentials = parseBasicAuthHeader(req.get("authorization"));
+  if (credentials?.user && hasAdminCredentials(req)) {
+    return credentials.user;
+  }
+  if (isLoopbackIp(getClientIpFromRequest(req))) {
+    return "loopback";
+  }
+  return "unknown";
+}
+
+function ensureCompetitionSettingsEditable({ req, competitionType, overrideRequested }) {
+  const setupState = getSetupStateForCompetition(competitionType);
+  if (setupState !== "locked") {
+    return { ok: true, setupState };
+  }
+
+  if (!overrideRequested) {
+    return {
+      ok: false,
+      statusCode: 409,
+      error: "Competition settings are locked. Use override to modify.",
+      setupState,
+    };
+  }
+
+  if (!ADMIN_PROTECTION_ENABLED || !hasAdminCredentials(req)) {
+    return {
+      ok: false,
+      statusCode: 401,
+      error: "Override requires admin Basic Auth credentials",
+      setupState,
+    };
+  }
+
+  return { ok: true, setupState };
+}
+
+function buildCompetitionPeriodCalendarsSnapshot() {
+  return SUPPORTED_COMPETITION_TYPES.reduce((acc, type) => {
+    const setupState = getSetupStateForCompetition(type);
+    const lockMetadata = getLockMetadataForCompetition(type);
+    acc[type] = {
+      periodWindows: getPeriodWindowsForCompetition(type),
+      setupState,
+      lockMetadata,
+      expectedPeriodCount: getExpectedPeriodCount(type),
     };
     return acc;
   }, {});
@@ -3586,6 +3878,8 @@ app.get("/api/settings", (_req, res) => {
   const compareDate = getSetting("compareDate", DEFAULT_COMPARE_DATE);
   const competitionType = getActiveCompetitionType();
   const rankingWindow = getRankingWindowForCompetition(competitionType);
+  const periodCalendars = buildCompetitionPeriodCalendarsSnapshot();
+
   res.json({
     compareDate,
     competitionType,
@@ -3594,6 +3888,21 @@ app.get("/api/settings", (_req, res) => {
       rankingTo: rankingWindow.rankingTo,
     },
     rankingWindows: buildCompetitionRankingWindowsSnapshot(),
+    periodCalendar: periodCalendars[competitionType],
+    periodCalendars,
+  });
+});
+
+app.get("/api/settings/audit", (req, res) => {
+  const competitionType = normalizeCompetitionType(req.query.competitionType);
+  const limit = Number.parseInt(String(req.query.limit ?? "30"), 10);
+  const entries = listSettingsAuditEntries({
+    competitionType,
+    limit,
+  });
+  res.json({
+    count: entries.length,
+    entries,
   });
 });
 
@@ -3606,7 +3915,20 @@ app.post("/api/settings/competition-type", (req, res) => {
     return;
   }
 
+  const oldCompetitionType = getActiveCompetitionType();
   setActiveCompetitionType(competitionType);
+  if (oldCompetitionType !== competitionType) {
+    appendSettingsAuditEntry({
+      actor: getActorFromRequest(req),
+      competitionType,
+      settingKey: "competitionType",
+      oldValue: oldCompetitionType,
+      newValue: competitionType,
+      overrideUsed: false,
+      reason: "",
+    });
+  }
+
   const rankingWindow = getRankingWindowForCompetition(competitionType);
   res.json({
     competitionType,
@@ -3614,6 +3936,7 @@ app.post("/api/settings/competition-type", (req, res) => {
       rankingFrom: rankingWindow.rankingFrom,
       rankingTo: rankingWindow.rankingTo,
     },
+    periodCalendar: buildCompetitionPeriodCalendarsSnapshot()[competitionType],
   });
 });
 
@@ -3621,11 +3944,19 @@ app.post("/api/settings/ranking-window", (req, res) => {
   const competitionType = normalizeCompetitionType(req.body?.competitionType);
   const rankingFrom = String(req.body?.rankingFrom ?? "").trim();
   const rankingTo = String(req.body?.rankingTo ?? "").trim();
+  const overrideRequested = isTruthyQueryValue(req.body?.override);
+  const reason = String(req.body?.reason ?? "").trim();
 
   if (!competitionType) {
     res.status(400).json({
       error: `competitionType must be one of: ${SUPPORTED_COMPETITION_TYPES.join(", ")}`,
     });
+    return;
+  }
+
+  const editPermission = ensureCompetitionSettingsEditable({ req, competitionType, overrideRequested });
+  if (!editPermission.ok) {
+    res.status(editPermission.statusCode).json({ error: editPermission.error, setupState: editPermission.setupState });
     return;
   }
 
@@ -3639,11 +3970,173 @@ app.post("/api/settings/ranking-window", (req, res) => {
     return;
   }
 
+  const oldWindow = getRankingWindowForCompetition(competitionType);
   setRankingWindowForCompetition({ competitionType, rankingFrom, rankingTo });
+
+  if (oldWindow.rankingFrom !== rankingFrom || oldWindow.rankingTo !== rankingTo) {
+    appendSettingsAuditEntry({
+      actor: getActorFromRequest(req),
+      competitionType,
+      settingKey: "rankingWindow",
+      oldValue: JSON.stringify({ rankingFrom: oldWindow.rankingFrom, rankingTo: oldWindow.rankingTo }),
+      newValue: JSON.stringify({ rankingFrom, rankingTo }),
+      overrideUsed: overrideRequested,
+      reason,
+    });
+  }
+
   res.json({
     competitionType,
     rankingFrom,
     rankingTo,
+    setupState: getSetupStateForCompetition(competitionType),
+  });
+});
+
+app.post("/api/settings/period-windows", (req, res) => {
+  const competitionType = normalizeCompetitionType(req.body?.competitionType);
+  const periodWindowsInput = req.body?.periodWindows;
+  const overrideRequested = isTruthyQueryValue(req.body?.override);
+  const reason = String(req.body?.reason ?? "").trim();
+
+  if (!competitionType) {
+    res.status(400).json({
+      error: `competitionType must be one of: ${SUPPORTED_COMPETITION_TYPES.join(", ")}`,
+    });
+    return;
+  }
+
+  const editPermission = ensureCompetitionSettingsEditable({ req, competitionType, overrideRequested });
+  if (!editPermission.ok) {
+    res.status(editPermission.statusCode).json({ error: editPermission.error, setupState: editPermission.setupState });
+    return;
+  }
+
+  let normalizedWindows;
+  try {
+    normalizedWindows = normalizeAndValidatePeriodWindows(periodWindowsInput, competitionType);
+  } catch (error) {
+    res.status(400).json({ error: String(error?.message ?? "Invalid period windows") });
+    return;
+  }
+
+  const oldWindows = getPeriodWindowsForCompetition(competitionType);
+  setPeriodWindowsForCompetition(competitionType, normalizedWindows);
+
+  appendSettingsAuditEntry({
+    actor: getActorFromRequest(req),
+    competitionType,
+    settingKey: "periodWindows",
+    oldValue: JSON.stringify(oldWindows),
+    newValue: JSON.stringify(normalizedWindows),
+    overrideUsed: overrideRequested,
+    reason,
+  });
+
+  res.json({
+    competitionType,
+    periodWindows: normalizedWindows,
+    setupState: getSetupStateForCompetition(competitionType),
+    lockMetadata: getLockMetadataForCompetition(competitionType),
+  });
+});
+
+app.post("/api/settings/setup-action", (req, res) => {
+  const competitionType = normalizeCompetitionType(req.body?.competitionType);
+  const action = String(req.body?.action ?? "").trim().toLowerCase();
+  const overrideRequested = isTruthyQueryValue(req.body?.override);
+  const reason = String(req.body?.reason ?? "").trim();
+
+  if (!competitionType) {
+    res.status(400).json({
+      error: `competitionType must be one of: ${SUPPORTED_COMPETITION_TYPES.join(", ")}`,
+    });
+    return;
+  }
+
+  if (action !== "initialize" && action !== "lock") {
+    res.status(400).json({ error: "action must be 'initialize' or 'lock'" });
+    return;
+  }
+
+  const editPermission = ensureCompetitionSettingsEditable({ req, competitionType, overrideRequested });
+  if (!editPermission.ok) {
+    res.status(editPermission.statusCode).json({ error: editPermission.error, setupState: editPermission.setupState });
+    return;
+  }
+
+  const currentSetupState = getSetupStateForCompetition(competitionType);
+  const currentWindows = getPeriodWindowsForCompetition(competitionType);
+
+  try {
+    normalizeAndValidatePeriodWindows(currentWindows, competitionType);
+  } catch {
+    res.status(400).json({ error: "Valid period windows are required before setup actions" });
+    return;
+  }
+
+  if (action === "initialize") {
+    if (currentSetupState === "draft") {
+      setSetupStateForCompetition(competitionType, "initialized");
+      appendSettingsAuditEntry({
+        actor: getActorFromRequest(req),
+        competitionType,
+        settingKey: "setupState",
+        oldValue: currentSetupState,
+        newValue: "initialized",
+        overrideUsed: overrideRequested,
+        reason,
+      });
+    }
+
+    res.json({
+      competitionType,
+      setupState: getSetupStateForCompetition(competitionType),
+      periodWindows: getPeriodWindowsForCompetition(competitionType),
+      lockMetadata: getLockMetadataForCompetition(competitionType),
+    });
+    return;
+  }
+
+  if (currentSetupState !== "initialized" && !overrideRequested) {
+    res.status(409).json({ error: "Competition must be initialized before locking", setupState: currentSetupState });
+    return;
+  }
+
+  const previousState = currentSetupState;
+  setSetupStateForCompetition(competitionType, "locked");
+  const actor = getActorFromRequest(req);
+  const lockMetadata = {
+    lockedAt: new Date().toISOString(),
+    lockedBy: actor,
+  };
+  setLockMetadataForCompetition(competitionType, lockMetadata);
+
+  appendSettingsAuditEntry({
+    actor,
+    competitionType,
+    settingKey: "setupState",
+    oldValue: previousState,
+    newValue: "locked",
+    overrideUsed: overrideRequested,
+    reason,
+  });
+
+  appendSettingsAuditEntry({
+    actor,
+    competitionType,
+    settingKey: "periodWindowsLock",
+    oldValue: "",
+    newValue: JSON.stringify(lockMetadata),
+    overrideUsed: overrideRequested,
+    reason,
+  });
+
+  res.json({
+    competitionType,
+    setupState: "locked",
+    periodWindows: getPeriodWindowsForCompetition(competitionType),
+    lockMetadata,
   });
 });
 
