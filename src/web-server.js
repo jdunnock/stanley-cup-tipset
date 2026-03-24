@@ -159,6 +159,7 @@ const teamValidatorRateLimiter = createEndpointRateLimiter({
 });
 
 let mcpClientPromise = null;
+let mcpClientInitialized = false;
 let mcpThrottleLock = Promise.resolve();
 let mcpNextAllowedAt = 0;
 let autoRefreshInProgress = false;
@@ -2887,6 +2888,7 @@ async function createMcpClient() {
   );
 
   await client.connect(transport);
+  mcpClientInitialized = true;
   return client;
 }
 
@@ -2899,7 +2901,21 @@ async function getMcpClient() {
     return await mcpClientPromise;
   } catch (error) {
     mcpClientPromise = null;
+    mcpClientInitialized = false;
     throw error;
+  }
+}
+
+async function ensureMcpClientReady(timeoutMs = 30000) {
+  if (mcpClientInitialized) return;
+  
+  const startTime = Date.now();
+  while (!mcpClientInitialized && Date.now() - startTime < timeoutMs) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  
+  if (!mcpClientInitialized) {
+    throw new Error(`MCP client failed to initialize within ${timeoutMs}ms`);
   }
 }
 
@@ -3801,10 +3817,15 @@ app.listen(PORT, async () => {
   console.log(`Startup cache warmup: ${STARTUP_CACHE_WARMUP_ENABLED ? "enabled" : "disabled"}`);
   if (STARTUP_CACHE_WARMUP_ENABLED) {
     console.log(`Startup cache warmup delay: ${Math.max(0, STARTUP_CACHE_WARMUP_DELAY_MS)}ms`);
-    setTimeout(() => {
-      warmTipsenCacheOnStartup().catch((error) => {
+    setTimeout(async () => {
+      try {
+        if (useMcpBridge) {
+          await ensureMcpClientReady();
+        }
+        await warmTipsenCacheOnStartup();
+      } catch (error) {
         console.error(`[cache-warmup] startup warmup failed: ${error.message}`);
-      });
+      }
     }, Math.max(0, STARTUP_CACHE_WARMUP_DELAY_MS));
   }
   if (AUTO_REFRESH_SCHEDULER_ENABLED) {

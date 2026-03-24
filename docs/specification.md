@@ -634,3 +634,8 @@ Suositeltu raportointi:
     - Lisätty `getInjuryLookup()`-funktioon in-flight promise-lukitus, jotta samanaikaiset pyynnöt jakavat yhden ESPN-hakukierroksen
     - Lisätty `buildPeriod3RankingData()`-funktioon cacheKey-kohtainen in-flight deduplikointi, jotta samat ranking-haut eivät käynnisty rinnakkain  - **Vaihe B2 (luotettavuus): SQLite upsert atomaarisuus:**
     - Niputettu `saveNyheterSnapshot()`-funktion INSERT + UPDATE-operaatio SQLite-transaktioksi, jotta kaksi rinnakkaista kutsua samalla avaimella ei aiheuta conflict-virhettä
+  - **Vaihe B3 (luotettavuus): MCP-asiakasinitialsointi race condition -suojaus:**
+    - Lisätty globaali lippu `mcpClientInitialized`, jonka asettaa `createMcpClient()` vasta kun `client.connect()` on valmis
+    - Lisätty `ensureMcpClientReady(timeoutMs)` -funktio, joka odottaa MCP-initialisointia timeoutilla (oletusarvo 30s)
+    - Muutettu startup cache warmup kutsumaan `ensureMcpClientReady()` ennen välimuistin lämmitystä, jotta rinnakkaiset pyyntökaaviot eivät yritä käyttää epävalmiita MCP-asiakaita
+    - Palautetaan `mcpClientInitialized = false` kun MCP-asiakas epäonnistuu uudelleenyrityksissä, jotta seuraava kutsu voi alustaa uudelleen
