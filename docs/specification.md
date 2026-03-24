@@ -606,3 +606,9 @@ Suositeltu raportointi:
   - **Hotfix: team-validator `fileName is not defined`:**
     - Korjattu `validateTeam()`-funktion ranking-kutsu (`buildPeriod3RankingData`) käyttämään eksplisiittistä `fileName: ""` arvoa
     - Oire poistuu: uuden joukkueen validointi ei kaadu enää `ReferenceError: fileName is not defined` virheeseen
+  - **Refaktorointi: Nyheter-keräys irrotettu sisäisestä `/api/tipsen-summary` HTTP-kutsusta:**
+    - Lisätty jaettu service-funktio `getTipsenSummaryPayload(...)`, joka sisältää tipsen-summaryn laskentalogiikan
+    - `GET /api/tipsen-summary` käyttää nyt samaa service-funktiota wrapper-endpointina
+    - `collectNyheterSnapshot(...)` käyttää service-funktiota suoraan ilman sisäistä HTTP-kierrosta
+    - `forceRefreshTipsenForFile(...)` käyttää service-funktiota suoraan (`forceRefresh: true`) ilman sisäistä HTTP-kierrosta
+    - Tulos: Nyheter-keräyksen ja pistelaskennan välinen tekninen riippuvuus kevenee, mutta laskentalogiikka säilyy samana

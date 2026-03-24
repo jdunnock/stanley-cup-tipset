@@ -379,20 +379,319 @@ async function buildDataReadiness(targetDate) {
   };
 }
 
-async function forceRefreshTipsenForFile({ fileName, seasonId, compareDate }) {
-  const params = new URLSearchParams({
-    file: fileName,
+class EndpointProxyError extends Error {
+  constructor(statusCode, payload) {
+    super(`Endpoint proxy error (${statusCode})`);
+    this.name = "EndpointProxyError";
+    this.statusCode = statusCode;
+    this.payload = payload;
+  }
+}
+
+async function getTipsenSummaryPayload({
+  fileName = "",
+  seasonId = "20252026",
+  compareDate,
+  forceRefresh = false,
+  includeCacheDebug = false,
+} = {}) {
+  // Period 1 preview: show enrolled teams with 0 points while game has not started (enabled === false).
+  // Automatically deactivated when enabled flips to true — no code change needed.
+  {
+    const period1Preview = await readPeriod1RostersRaw();
+    if (period1Preview !== null) {
+      const previewRosterRows = [
+        { rowNumber: 1, role: "Maalivahti" },
+        { rowNumber: 2, role: "Maalivahti" },
+        { rowNumber: 3, role: "Puolustaja" },
+        { rowNumber: 4, role: "Puolustaja" },
+        { rowNumber: 5, role: "Puolustaja" },
+        { rowNumber: 6, role: "Puolustaja" },
+        { rowNumber: 7, role: "Hyökkääjä" },
+        { rowNumber: 8, role: "Hyökkääjä" },
+        { rowNumber: 9, role: "Hyökkääjä" },
+        { rowNumber: 10, role: "Hyökkääjä" },
+        { rowNumber: 11, role: "Hyökkääjä" },
+        { rowNumber: 12, role: "Hyökkääjä" },
+      ];
+      const previewParticipants = period1Preview.participants.map((participant) => {
+        const players = [];
+        let rn = 1;
+        for (const label of participant.goalies ?? []) {
+          players.push({
+            rowNumber: rn++,
+            role: "Maalivahti",
+            playerLabel: String(label),
+            teamAbbrev: "",
+            deltaPoints: 0,
+            source: "period1_preview",
+            matchedFullName: "",
+          });
+        }
+        for (const label of participant.defenders ?? []) {
+          players.push({
+            rowNumber: rn++,
+            role: "Puolustaja",
+            playerLabel: String(label),
+            teamAbbrev: "",
+            deltaPoints: 0,
+            source: "period1_preview",
+            matchedFullName: "",
+          });
+        }
+        for (const label of participant.forwards ?? []) {
+          players.push({
+            rowNumber: rn++,
+            role: "Hyökkääjä",
+            playerLabel: String(label),
+            teamAbbrev: "",
+            deltaPoints: 0,
+            source: "period1_preview",
+            matchedFullName: "",
+          });
+        }
+        return { name: participant.name, totalDelta: 0, players };
+      });
+
+      return {
+        file: fileName,
+        seasonId,
+        compareDate,
+        rosterSource: "period1_preview",
+        rosterRows: previewRosterRows,
+        participants: previewParticipants,
+      };
+    }
+  }
+
+  const rosterSource = await resolveActiveTemporaryRosterSource(compareDate);
+  const useTemporaryPeriod3Rosters = rosterSource.rosterSource === "temporary_period3_rosters";
+  const rosterSourceKey = rosterSource.sourceKey;
+
+  const dataWindowKey = getHelsinkiDateWindowKey();
+  const cacheKey = [RESPONSE_CACHE_VERSION, "tipsen", seasonId, fileName, compareDate, dataWindowKey, rosterSourceKey].join("|");
+  const cachedResponse = forceRefresh ? null : getCachedResponse(cacheKey);
+  if (cachedResponse) {
+    const cachePayload = {
+      ...(cachedResponse.cache ?? {}),
+      window: dataWindowKey,
+      timezone: "Europe/Helsinki",
+      refreshHourLocal: 10,
+    };
+
+    if (includeCacheDebug) {
+      cachePayload.hit = true;
+    } else {
+      delete cachePayload.hit;
+      delete cachePayload.compareHit;
+    }
+
+    return {
+      ...cachedResponse,
+      cache: cachePayload,
+    };
+  }
+
+  const compareParams = new URLSearchParams({
+    seasonId,
+    compareDate: useTemporaryPeriod3Rosters ? getPreviousDateIso(compareDate) : compareDate,
+  });
+  if (fileName) {
+    compareParams.set("file", fileName);
+  }
+  if (forceRefresh) {
+    compareParams.set("forceRefresh", "true");
+  }
+
+  const compareResponse = await fetch(`http://127.0.0.1:${PORT}/api/players-stats-compare?${compareParams}`);
+  const comparePayload = await compareResponse.json();
+  if (!compareResponse.ok) {
+    throw new EndpointProxyError(compareResponse.status, comparePayload);
+  }
+
+  let tipsenRows = [];
+  let participantColumns = [];
+  let rosterRows = [];
+
+  const temporaryRosters = buildTemporaryParticipantColumns(rosterSource.participants);
+  participantColumns = temporaryRosters.participantColumns;
+  rosterRows = temporaryRosters.rosterRows;
+
+  const compareItems = comparePayload.items ?? [];
+  const { byTeamAndLast, byTeamLastAndInitial, byLastName, byLastAndInitial } = buildCompareIndexes(compareItems);
+  const tipsenTeamCache = new Map();
+  const tipsenSnapshotCache = new Map();
+  const injuryLookup = await getInjuryLookup();
+  const period3WindowRanking = useTemporaryPeriod3Rosters
+    ? await buildPeriod3RankingData({
+        fileName,
+        seasonId,
+        fromDate: compareDate,
+        toDate: getHelsinkiTodayDate(),
+      })
+    : null;
+  const participants = [];
+
+  for (const participant of participantColumns) {
+    const players = [];
+
+    for (const rosterRow of rosterRows) {
+      const parsedCell = participant.rosterByRow
+        ? participant.rosterByRow.get(rosterRow.rowNumber) ?? null
+        : parseTipsenPlayerCell((tipsenRows[rosterRow.rowNumber - 1] ?? [])[participant.playerCol]);
+      if (!parsedCell) {
+        players.push({
+          rowNumber: rosterRow.rowNumber,
+          role: rosterRow.role,
+          playerLabel: "",
+          teamAbbrev: "",
+          deltaPoints: null,
+          source: "empty",
+        });
+        continue;
+      }
+
+      const teamKey = parsedCell.teamAbbrev ? `${parsedCell.teamAbbrev}|${parsedCell.lastNameNormalized}` : "";
+      const directMatch = teamKey ? byTeamAndLast.get(teamKey) : null;
+      const teamInitialKey =
+        parsedCell.teamAbbrev && parsedCell.firstInitial && parsedCell.hasGivenNameHint
+          ? `${parsedCell.teamAbbrev}|${parsedCell.lastNameNormalized}|${parsedCell.firstInitial}`
+          : "";
+      const teamInitialCandidates = teamInitialKey ? byTeamLastAndInitial.get(teamInitialKey) ?? [] : [];
+      const teamInitialMatch = teamInitialCandidates.length === 1 ? teamInitialCandidates[0] : null;
+      const fallbackCandidates = byLastName.get(parsedCell.lastNameNormalized) ?? [];
+      const fallbackInitialKey = parsedCell.firstInitial && parsedCell.hasGivenNameHint
+        ? `${parsedCell.lastNameNormalized}|${parsedCell.firstInitial}`
+        : "";
+      const fallbackInitialCandidates = fallbackInitialKey ? byLastAndInitial.get(fallbackInitialKey) ?? [] : [];
+      const fallbackInitialMatch = fallbackInitialCandidates.length === 1 ? fallbackInitialCandidates[0] : null;
+      const fallbackMatch = fallbackCandidates.length === 1 ? fallbackCandidates[0] : null;
+      const matched = directMatch ?? teamInitialMatch ?? fallbackInitialMatch ?? fallbackMatch ?? null;
+      let liveSnapshot = null;
+
+      if (!matched) {
+        liveSnapshot = await resolveTipsenLiveSnapshot({
+          parsedCell,
+          seasonId,
+          compareDate,
+          teamCache: tipsenTeamCache,
+          snapshotCache: tipsenSnapshotCache,
+        });
+      }
+
+      const resolvedTeamAbbrev = String(
+        matched?.teamAbbrev ?? liveSnapshot?.teamAbbrev ?? parsedCell.teamAbbrev ?? ""
+      )
+        .trim()
+        .toUpperCase();
+      const resolvedPlayerName = String(
+        extractDisplayLastNameFromFullName(matched?.fullName) ||
+          liveSnapshot?.matchedLastName ||
+          parsedCell.playerName ||
+          ""
+      ).trim();
+      const resolvedPlayerLabel = resolvedTeamAbbrev && resolvedPlayerName
+        ? `${resolvedPlayerName} (${resolvedTeamAbbrev})`
+        : parsedCell.playerLabel;
+      const roleToken = normalizeText(rosterRow.role ?? "");
+      const isGoalieRole = roleToken === "mv" || roleToken.includes("maalivahti") || roleToken.includes("goalie");
+      let deltaPoints = matched?.deltaPoints ?? liveSnapshot?.deltaPoints ?? null;
+
+      if (period3WindowRanking) {
+        const preferredName = String(matched?.fullName ?? liveSnapshot?.matchedFullName ?? parsedCell.playerName ?? "").trim();
+        const fullKey = buildPlayerFullTeamKey(preferredName, resolvedTeamAbbrev);
+        const lastKey = buildPlayerLastTeamKey(preferredName, resolvedTeamAbbrev);
+
+        if (isGoalieRole) {
+          const byFull = period3WindowRanking.goalieByFullKey.get(fullKey) ?? [];
+          const byLast = period3WindowRanking.goalieByLastKey.get(lastKey) ?? [];
+          const goalieMatch = byFull[0] ?? byLast[0] ?? null;
+          if (goalieMatch && Number.isFinite(Number(goalieMatch.points))) {
+            deltaPoints = Number(goalieMatch.points);
+          }
+        } else {
+          const byFull = period3WindowRanking.skaterByFullKey.get(fullKey) ?? [];
+          const byLast = period3WindowRanking.skaterByLastKey.get(lastKey) ?? [];
+          const skaterMatch = byFull[0] ?? byLast[0] ?? null;
+          if (skaterMatch && Number.isFinite(Number(skaterMatch.points))) {
+            deltaPoints = Number(skaterMatch.points);
+          }
+        }
+      }
+
+      players.push({
+        rowNumber: rosterRow.rowNumber,
+        role: rosterRow.role,
+        playerLabel: resolvedPlayerLabel,
+        teamAbbrev: resolvedTeamAbbrev,
+        deltaPoints,
+        injury: resolveInjuryForPlayer(
+          {
+            matchedFullName: matched?.fullName ?? liveSnapshot?.matchedFullName ?? "",
+            playerLabel: parsedCell.playerLabel,
+          },
+          injuryLookup
+        ),
+        source: directMatch
+          ? "team_last"
+          : teamInitialMatch
+            ? "team_last_initial"
+            : fallbackInitialMatch
+              ? "last_name_initial_unique"
+              : fallbackMatch
+                ? "last_name_unique"
+                : liveSnapshot?.source ?? "not_found",
+        matchedFullName: matched?.fullName ?? liveSnapshot?.matchedFullName ?? "",
+      });
+    }
+
+    const totalDelta = players.reduce((sum, player) => {
+      if (!Number.isFinite(Number(player.deltaPoints))) {
+        return sum;
+      }
+      return sum + Number(player.deltaPoints);
+    }, 0);
+
+    participants.push({
+      name: participant.name,
+      totalDelta,
+      players,
+    });
+  }
+
+  const responsePayload = {
+    file: fileName || rosterSource.sourceLabel,
     seasonId,
     compareDate,
-    forceRefresh: "true",
+    rosterSource: rosterSource.rosterSource,
+    rosterRows,
+    participants,
+    cache: {
+      window: dataWindowKey,
+      timezone: "Europe/Helsinki",
+      refreshHourLocal: 10,
+      fetchedAt: new Date().toISOString(),
+      ...(includeCacheDebug
+        ? {
+            hit: false,
+            compareHit: Boolean(comparePayload?.cache?.hit),
+          }
+        : {}),
+    },
+  };
+
+  setCachedResponse(cacheKey, responsePayload);
+  return responsePayload;
+}
+
+async function forceRefreshTipsenForFile({ fileName, seasonId, compareDate }) {
+  await getTipsenSummaryPayload({
+    fileName,
+    seasonId,
+    compareDate,
+    forceRefresh: true,
+    includeCacheDebug: false,
   });
-
-  const response = await fetch(`http://127.0.0.1:${PORT}/api/tipsen-summary?${params.toString()}`);
-  const body = await response.text();
-
-  if (!response.ok) {
-    throw new Error(`tipsen refresh failed for ${fileName} (${response.status}): ${body.slice(0, 200)}`);
-  }
 
   return {
     file: fileName,
@@ -638,23 +937,13 @@ async function collectNyheterSnapshot({
     };
   }
 
-  const params = new URLSearchParams({
-    file: fileName,
+  const tipsenPayload = await getTipsenSummaryPayload({
+    fileName,
     seasonId,
     compareDate,
+    forceRefresh,
+    includeCacheDebug: false,
   });
-
-  if (forceRefresh) {
-    params.set("forceRefresh", "true");
-  }
-
-  const response = await fetch(`http://127.0.0.1:${PORT}/api/tipsen-summary?${params.toString()}`);
-  const body = await response.text();
-  if (!response.ok) {
-    throw new Error(`tipsen-summary failed (${response.status}): ${body.slice(0, 250)}`);
-  }
-
-  const tipsenPayload = JSON.parse(body);
   const normalizedSnapshotDate = String(snapshotDate ?? getHelsinkiTodayDate()).trim();
   const snapshotPayload = buildNyheterSnapshotFromTipsenPayload(tipsenPayload);
   const collectedAt = saveNyheterSnapshot({
@@ -3348,273 +3637,19 @@ app.get("/api/tipsen-summary", async (req, res) => {
       res.status(400).json({ error: "seasonId must be an 8-digit string, e.g. 20252026" });
       return;
     }
-
-    // Period 1 preview: show enrolled teams with 0 points while game has not started (enabled === false).
-    // Automatically deactivated when enabled flips to true — no code change needed.
-    {
-      const period1Preview = await readPeriod1RostersRaw();
-      if (period1Preview !== null) {
-        const previewRosterRows = [
-          { rowNumber: 1, role: "Maalivahti" },
-          { rowNumber: 2, role: "Maalivahti" },
-          { rowNumber: 3, role: "Puolustaja" },
-          { rowNumber: 4, role: "Puolustaja" },
-          { rowNumber: 5, role: "Puolustaja" },
-          { rowNumber: 6, role: "Puolustaja" },
-          { rowNumber: 7, role: "Hyökkääjä" },
-          { rowNumber: 8, role: "Hyökkääjä" },
-          { rowNumber: 9, role: "Hyökkääjä" },
-          { rowNumber: 10, role: "Hyökkääjä" },
-          { rowNumber: 11, role: "Hyökkääjä" },
-          { rowNumber: 12, role: "Hyökkääjä" },
-        ];
-        const previewParticipants = period1Preview.participants.map((participant) => {
-          const players = [];
-          let rn = 1;
-          for (const label of participant.goalies ?? []) {
-            players.push({ rowNumber: rn++, role: "Maalivahti", playerLabel: String(label), teamAbbrev: "", deltaPoints: 0, source: "period1_preview", matchedFullName: "" });
-          }
-          for (const label of participant.defenders ?? []) {
-            players.push({ rowNumber: rn++, role: "Puolustaja", playerLabel: String(label), teamAbbrev: "", deltaPoints: 0, source: "period1_preview", matchedFullName: "" });
-          }
-          for (const label of participant.forwards ?? []) {
-            players.push({ rowNumber: rn++, role: "Hyökkääjä", playerLabel: String(label), teamAbbrev: "", deltaPoints: 0, source: "period1_preview", matchedFullName: "" });
-          }
-          return { name: participant.name, totalDelta: 0, players };
-        });
-        res.json({
-          file: fileName,
-          seasonId,
-          compareDate,
-          rosterSource: "period1_preview",
-          rosterRows: previewRosterRows,
-          participants: previewParticipants,
-        });
-        return;
-      }
-    }
-
-    const rosterSource = await resolveActiveTemporaryRosterSource(compareDate);
-    const useTemporaryPeriod3Rosters = rosterSource.rosterSource === "temporary_period3_rosters";
-    const rosterSourceKey = rosterSource.sourceKey;
-
-    const dataWindowKey = getHelsinkiDateWindowKey();
-    const cacheKey = [RESPONSE_CACHE_VERSION, "tipsen", seasonId, fileName, compareDate, dataWindowKey, rosterSourceKey].join("|");
-    const cachedResponse = forceRefresh ? null : getCachedResponse(cacheKey);
-    if (cachedResponse) {
-      const cachePayload = {
-        ...(cachedResponse.cache ?? {}),
-        window: dataWindowKey,
-        timezone: "Europe/Helsinki",
-        refreshHourLocal: 10,
-      };
-
-      if (includeCacheDebug) {
-        cachePayload.hit = true;
-      } else {
-        delete cachePayload.hit;
-        delete cachePayload.compareHit;
-      }
-
-      res.json({
-        ...cachedResponse,
-        cache: cachePayload,
-      });
-      return;
-    }
-
-    const compareParams = new URLSearchParams({
-      seasonId,
-      compareDate: useTemporaryPeriod3Rosters ? getPreviousDateIso(compareDate) : compareDate,
-    });
-    if (fileName) {
-      compareParams.set("file", fileName);
-    }
-    if (forceRefresh) {
-      compareParams.set("forceRefresh", "true");
-    }
-
-    const compareResponse = await fetch(`http://127.0.0.1:${PORT}/api/players-stats-compare?${compareParams}`);
-    const comparePayload = await compareResponse.json();
-    if (!compareResponse.ok) {
-      res.status(compareResponse.status).json(comparePayload);
-      return;
-    }
-
-    let tipsenRows = [];
-    let participantColumns = [];
-    let rosterRows = [];
-
-    const temporaryRosters = buildTemporaryParticipantColumns(rosterSource.participants);
-    participantColumns = temporaryRosters.participantColumns;
-    rosterRows = temporaryRosters.rosterRows;
-
-    const compareItems = comparePayload.items ?? [];
-    const { byTeamAndLast, byTeamLastAndInitial, byLastName, byLastAndInitial } = buildCompareIndexes(compareItems);
-    const tipsenTeamCache = new Map();
-    const tipsenSnapshotCache = new Map();
-    const injuryLookup = await getInjuryLookup();
-    const period3WindowRanking = useTemporaryPeriod3Rosters
-      ? await buildPeriod3RankingData({
-          fileName,
-          seasonId,
-          fromDate: compareDate,
-          toDate: getHelsinkiTodayDate(),
-        })
-      : null;
-    const participants = [];
-
-    for (const participant of participantColumns) {
-      const players = [];
-
-      for (const rosterRow of rosterRows) {
-        const parsedCell = participant.rosterByRow
-          ? participant.rosterByRow.get(rosterRow.rowNumber) ?? null
-          : parseTipsenPlayerCell((tipsenRows[rosterRow.rowNumber - 1] ?? [])[participant.playerCol]);
-        if (!parsedCell) {
-          players.push({
-            rowNumber: rosterRow.rowNumber,
-            role: rosterRow.role,
-            playerLabel: "",
-            teamAbbrev: "",
-            deltaPoints: null,
-            source: "empty",
-          });
-          continue;
-        }
-
-        const teamKey = parsedCell.teamAbbrev ? `${parsedCell.teamAbbrev}|${parsedCell.lastNameNormalized}` : "";
-        const directMatch = teamKey ? byTeamAndLast.get(teamKey) : null;
-        const teamInitialKey =
-          parsedCell.teamAbbrev && parsedCell.firstInitial && parsedCell.hasGivenNameHint
-            ? `${parsedCell.teamAbbrev}|${parsedCell.lastNameNormalized}|${parsedCell.firstInitial}`
-            : "";
-        const teamInitialCandidates = teamInitialKey ? byTeamLastAndInitial.get(teamInitialKey) ?? [] : [];
-        const teamInitialMatch = teamInitialCandidates.length === 1 ? teamInitialCandidates[0] : null;
-        const fallbackCandidates = byLastName.get(parsedCell.lastNameNormalized) ?? [];
-        const fallbackInitialKey = parsedCell.firstInitial && parsedCell.hasGivenNameHint
-          ? `${parsedCell.lastNameNormalized}|${parsedCell.firstInitial}`
-          : "";
-        const fallbackInitialCandidates = fallbackInitialKey ? byLastAndInitial.get(fallbackInitialKey) ?? [] : [];
-        const fallbackInitialMatch = fallbackInitialCandidates.length === 1 ? fallbackInitialCandidates[0] : null;
-        const fallbackMatch = fallbackCandidates.length === 1 ? fallbackCandidates[0] : null;
-        const matched = directMatch ?? teamInitialMatch ?? fallbackInitialMatch ?? fallbackMatch ?? null;
-        let liveSnapshot = null;
-
-        if (!matched) {
-          liveSnapshot = await resolveTipsenLiveSnapshot({
-            parsedCell,
-            seasonId,
-            compareDate,
-            teamCache: tipsenTeamCache,
-            snapshotCache: tipsenSnapshotCache,
-          });
-        }
-
-        const resolvedTeamAbbrev = String(
-          matched?.teamAbbrev ?? liveSnapshot?.teamAbbrev ?? parsedCell.teamAbbrev ?? ""
-        )
-          .trim()
-          .toUpperCase();
-        const resolvedPlayerName = String(
-          extractDisplayLastNameFromFullName(matched?.fullName) ||
-          liveSnapshot?.matchedLastName ||
-          parsedCell.playerName ||
-          ""
-        ).trim();
-        const resolvedPlayerLabel = resolvedTeamAbbrev && resolvedPlayerName
-          ? `${resolvedPlayerName} (${resolvedTeamAbbrev})`
-          : parsedCell.playerLabel;
-        const roleToken = normalizeText(rosterRow.role ?? "");
-        const isGoalieRole = roleToken === "mv" || roleToken.includes("maalivahti") || roleToken.includes("goalie");
-        let deltaPoints = matched?.deltaPoints ?? liveSnapshot?.deltaPoints ?? null;
-
-        if (period3WindowRanking) {
-          const preferredName = String(matched?.fullName ?? liveSnapshot?.matchedFullName ?? parsedCell.playerName ?? "").trim();
-          const fullKey = buildPlayerFullTeamKey(preferredName, resolvedTeamAbbrev);
-          const lastKey = buildPlayerLastTeamKey(preferredName, resolvedTeamAbbrev);
-
-          if (isGoalieRole) {
-            const byFull = period3WindowRanking.goalieByFullKey.get(fullKey) ?? [];
-            const byLast = period3WindowRanking.goalieByLastKey.get(lastKey) ?? [];
-            const goalieMatch = byFull[0] ?? byLast[0] ?? null;
-            if (goalieMatch && Number.isFinite(Number(goalieMatch.points))) {
-              deltaPoints = Number(goalieMatch.points);
-            }
-          } else {
-            const byFull = period3WindowRanking.skaterByFullKey.get(fullKey) ?? [];
-            const byLast = period3WindowRanking.skaterByLastKey.get(lastKey) ?? [];
-            const skaterMatch = byFull[0] ?? byLast[0] ?? null;
-            if (skaterMatch && Number.isFinite(Number(skaterMatch.points))) {
-              deltaPoints = Number(skaterMatch.points);
-            }
-          }
-        }
-
-        players.push({
-          rowNumber: rosterRow.rowNumber,
-          role: rosterRow.role,
-          playerLabel: resolvedPlayerLabel,
-          teamAbbrev: resolvedTeamAbbrev,
-          deltaPoints,
-          injury: resolveInjuryForPlayer(
-            {
-              matchedFullName: matched?.fullName ?? liveSnapshot?.matchedFullName ?? "",
-              playerLabel: parsedCell.playerLabel,
-            },
-            injuryLookup
-          ),
-          source: directMatch
-            ? "team_last"
-            : teamInitialMatch
-              ? "team_last_initial"
-              : fallbackInitialMatch
-                ? "last_name_initial_unique"
-                : fallbackMatch
-                  ? "last_name_unique"
-                  : liveSnapshot?.source ?? "not_found",
-          matchedFullName: matched?.fullName ?? liveSnapshot?.matchedFullName ?? "",
-        });
-      }
-
-      const totalDelta = players.reduce((sum, player) => {
-        if (!Number.isFinite(Number(player.deltaPoints))) {
-          return sum;
-        }
-        return sum + Number(player.deltaPoints);
-      }, 0);
-
-      participants.push({
-        name: participant.name,
-        totalDelta,
-        players,
-      });
-    }
-
-    const responsePayload = {
-      file: fileName || rosterSource.sourceLabel,
+    const payload = await getTipsenSummaryPayload({
+      fileName,
       seasonId,
       compareDate,
-      rosterSource: rosterSource.rosterSource,
-      rosterRows,
-      participants,
-      cache: {
-        window: dataWindowKey,
-        timezone: "Europe/Helsinki",
-        refreshHourLocal: 10,
-        fetchedAt: new Date().toISOString(),
-        ...(includeCacheDebug
-          ? {
-              hit: false,
-              compareHit: Boolean(comparePayload?.cache?.hit),
-            }
-          : {}),
-      },
-    };
-
-    setCachedResponse(cacheKey, responsePayload);
-    res.json(responsePayload);
+      forceRefresh,
+      includeCacheDebug,
+    });
+    res.json(payload);
   } catch (error) {
+    if (error instanceof EndpointProxyError) {
+      res.status(error.statusCode).json(error.payload);
+      return;
+    }
     res.status(500).json({ error: error.message });
   }
 });
