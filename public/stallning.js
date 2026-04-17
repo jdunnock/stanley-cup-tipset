@@ -1,6 +1,7 @@
 const statusEl = document.getElementById("status");
 const listEl = document.getElementById("list");
 const totalListEl = document.getElementById("totalList");
+const totalSectionEl = document.getElementById("totalSection");
 const periodTitleEl = document.getElementById("periodTitle");
 const totalTitleEl = document.getElementById("totalTitle");
 
@@ -30,6 +31,7 @@ const PERIOD_TWO_FINAL_POINTS = new Map([
 
 let selectedSeasonId = DEFAULT_SEASON_ID;
 let selectedCompareDate = DEFAULT_COMPARE_DATE;
+let selectedPeriodCalendar = null;
 
 function setStatus(text) {
   if (!statusEl) {
@@ -122,7 +124,7 @@ function renderPeriodTwoStandings(participants) {
 }
 
 function renderTotalStandings(participants) {
-  if (!totalListEl) {
+  if (!totalListEl || !totalSectionEl) {
     return;
   }
 
@@ -188,6 +190,33 @@ function renderTotalStandings(participants) {
   });
 }
 
+function getActivePeriodNumber(compareDate, periodCalendar) {
+  const windows = Array.isArray(periodCalendar?.periodWindows) ? periodCalendar.periodWindows : [];
+
+  for (const window of windows) {
+    const startDate = String(window?.startDate ?? "").trim();
+    const endDate = String(window?.endDate ?? "").trim();
+    if (startDate && endDate && String(compareDate ?? "") >= startDate && String(compareDate ?? "") <= endDate) {
+      return Number(window?.periodNumber ?? 0) || 0;
+    }
+  }
+
+  return 0;
+}
+
+function shouldShowTotalStandings(compareDate, periodCalendar) {
+  const activePeriodNumber = getActivePeriodNumber(compareDate, periodCalendar);
+  return activePeriodNumber >= 2 || isStanleyCupActive(compareDate);
+}
+
+function updateTotalSectionVisibility(compareDate, periodCalendar) {
+  if (!totalSectionEl) {
+    return;
+  }
+
+  totalSectionEl.style.display = shouldShowTotalStandings(compareDate, periodCalendar) ? "block" : "none";
+}
+
 function isStanleyCupActive(compareDate) {
   return String(compareDate ?? "") >= STANLEY_CUP_START_DATE;
 }
@@ -196,7 +225,7 @@ function updateSectionTitles(compareDate) {
   const stanleyCup = isStanleyCupActive(compareDate);
 
   if (periodTitleEl) {
-    periodTitleEl.textContent = stanleyCup ? "Ställning Stanley Cup" : "Slutställning Period 2";
+    periodTitleEl.textContent = stanleyCup ? "Ställning Stanley Cup" : "Ställning Period 1";
   }
 
   if (totalTitleEl) {
@@ -330,6 +359,9 @@ async function loadSettings() {
   if (data?.compareDate) {
     selectedCompareDate = data.compareDate;
   }
+  if (data?.periodCalendar) {
+    selectedPeriodCalendar = data.periodCalendar;
+  }
 }
 
 async function loadStandings() {
@@ -352,10 +384,13 @@ async function loadStandings() {
   const participants = applyCompetitionRank(sortedParticipants, (participant) => participant.totalDelta);
   const effectiveCompareDate = String(data.compareDate || selectedCompareDate || DEFAULT_COMPARE_DATE);
   updateSectionTitles(effectiveCompareDate);
+  updateTotalSectionVisibility(effectiveCompareDate, selectedPeriodCalendar);
   const totalStandings = buildTotalPeriodStandings(participants, effectiveCompareDate);
 
   renderPeriodTwoStandings(participants);
-  renderTotalStandings(totalStandings);
+  if (shouldShowTotalStandings(effectiveCompareDate, selectedPeriodCalendar)) {
+    renderTotalStandings(totalStandings);
+  }
 
   const refreshedTime = new Date().toLocaleTimeString("sv-SE", {
     hour: "2-digit",
@@ -367,6 +402,7 @@ async function loadStandings() {
 loadSettings()
   .then(() => {
     updateSectionTitles(selectedCompareDate);
+    updateTotalSectionVisibility(selectedCompareDate, selectedPeriodCalendar);
     return null;
   })
   .then(() => loadStandings())
