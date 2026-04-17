@@ -12,27 +12,27 @@ Lisäkonteksti ja päätösloki: [docs/specification.md](docs/specification.md) 
 
 ### Päiväkohtainen päätöstaulukko (cron 09:00 FI)
 
-| Aamun ajopäivä (FI) | Oletus targetDate (`eilinen`) | Tavoite | Vaaditaanko period 3 Excel? |
+| Aamun ajopäivä (FI) | Oletus targetDate (`eilinen`) | Tavoite | Vaaditaanko period 3 rosteri? |
 | --- | --- | --- | --- |
 | 2026-03-15 | 2026-03-14 | Päivitä period 2 viimeinen pelipäivä | Ei |
 | 2026-03-16 | 2026-03-15 | Period 3 ensimmäinen pelipäivä | Kyllä |
 | 2026-03-17 -> | >= 2026-03-16 | Period 3 jatkuvat päivitykset | Kyllä |
 
 Tulkinta:
-- `2026-03-15` aamun automaattiajo on sallittu ilman period 3 Exceliä.
-- `2026-03-16` aamusta eteenpäin automaattiajo blokataan ilman period 3 Exceliä (reason: `period3_excel_missing`).
+- `2026-03-15` aamun automaattiajo on sallittu ilman period 3 rosteria.
+- `2026-03-16` aamusta eteenpäin automaattiajo blokataan ilman period 3 rosteria.
 
 ## 2) Ennen vaihtoa (viimeistään 15.3 ennen ekaa period 3 peliä)
 
-- [ ] Uusi period 3 Excel on valmis ja tarkistettu
-- [ ] Excel sisältää kaikkien osallistujien period 3 pelaajat
-- [ ] Tiedoston nimi sovittu (selkeä, esim. `NHL tipset 2026 period3.xlsx`)
+- [ ] Stanley Cup validator toimii (`/team-validator.html`)
+- [ ] Kaikkien osallistujien period 3 joukkueet on syötetty validatorin kautta
+- [ ] `data/period3-rosters.json` sisältää kaikkien osallistujien pelaajat
 - [ ] Varmista että admin-kirjautuminen toimii (`/admin.html`)
 
 ## 3) Vaihtohetki (operointi)
 
-- [ ] Lataa uusi period 3 Excel adminin kautta
-- [ ] Valitse period 3 tiedosto aktiiviseksi (kun period 3 toteutus käyttää tiedostovalintaa)
+- [ ] Syötä tai tarkista puuttuvat period 3 joukkueet validatorissa
+- [ ] Varmista että `period3-rosters.json.enabled === true`
 - [ ] Aja force-refresh, jotta data lämpenee uudelle periodille
 - [ ] Varmista että `Ställningen` ja `Lagen` latautuvat ilman virheitä
 
@@ -40,12 +40,12 @@ Tulkinta:
 
 15.3 aamulla (period 2 finalisointi):
 - [ ] Kutsu `GET /api/cron/daily-refresh` ilman `force=true`
-- [ ] Varmista että vastaus EI ole `period3_excel_missing`
+- [ ] Varmista että vastaus EI ole `period3_rosters_missing`
 - [ ] Varmista että `date` on `2026-03-14` (tai vastaava period 2 viimeinen targetDate)
 
 16.3 aamulla (period 3 gate aktiivinen):
-- [ ] Jos period 3 Excel puuttuu, varmista että vastaus on `reason=period3_excel_missing`
-- [ ] Lataa period 3 Excel ja aja `GET /api/cron/daily-refresh?force=true`
+- [ ] Jos period 3 rosteri puuttuu, varmista että ajo ei käynnisty normaalipolkua pitkin
+- [ ] Tallenna puuttuvat joukkueet validatorilla ja aja `GET /api/cron/daily-refresh?force=true`
 - [ ] Varmista onnistumisen jälkeen `autoRefreshLastSuccessDate` asetuksista/API-vastauksesta
 
 ## 4) Period 3 pisteasteikko
@@ -71,10 +71,10 @@ Huomio:
 
 Jos period 3 data on virheellinen:
 
-1. Palauta edellinen toimiva Excel aktiiviseksi
+1. Palauta edellinen toimiva `period3-rosters.json`
 2. Aja force-refresh uudelleen
 3. Tarkista `Lagen` + `Ställningen`
-4. Tee korjattu period 3 Excel ja toista vaihto
+4. Tee korjattu rosteri validatorissa ja toista vaihto
 
 ## 7) Viestintä osallistujille
 

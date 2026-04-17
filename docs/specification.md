@@ -285,6 +285,10 @@ Kun käytät PR:ää, käytä tätä:
 
 ## 7. Muutosloki
 
+- 2026-04-18
+  - Siivottu README vastaamaan nykyistä JSON-roster + validator -mallia: poistettu vanhat `workflow-kit`, `docs/skills`, Excel-upload ja vanhentuneet admin-endpoint -viittaukset
+  - Täsmennetty period 3 runbookin gate-reason vastaamaan nykyistä backend-signaalia `period3_rosters_missing`
+
 - 2026-04-17
   - Päivitetty kanoninen nykytila JSON-only-roster-malliin: Stanley Cup -joukkueet syötetään validatorissa ja tallennetaan rosteri-JSONeihin, eikä Excel ole osa aktiivista tuotantopolkua
   - Palautettu backward compatibility -alias validatorille: vanha polku `period3-validator.html` ohjaa nyt sivulle `team-validator.html`, jotta vanhat bookmarkit ja sisäiset linkit eivät kaadu `Cannot GET /period3-validator.html` -virheeseen

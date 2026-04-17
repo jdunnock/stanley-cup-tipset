@@ -9,13 +9,13 @@ Vaihto periodiin 3 onnistuu ilman katkosta ennen ensimmäistä period 3 iltapeli
 ## 1) Ennen vaihtoa (2 min)
 
 - [ ] Admin-kirjautuminen toimii: `/admin.html`
-- [ ] Period 3 Excel on valmiina ja oikea tiedosto valittuna
+- [ ] Period 3 rosterit on syötetty validatorissa
 - [ ] Varmista aikaraja: period 2 loppu `15.3 klo 10:00 SE / 11:00 FI`
 
 ## 2) Vaihto (3 min)
 
-- [ ] Lataa period 3 Excel adminissa
-- [ ] Aseta period 3 tiedosto aktiiviseksi (kun period 3 käyttökytkentä tehdään)
+- [ ] Avaa `/team-validator.html` ja tarkista viimeiset rosterit
+- [ ] Varmista että `period3-rosters.json` on aktiivinen
 - [ ] Aja force-refresh kerran
 
 ## 3) Smoke-testit (3 min)
@@ -34,7 +34,7 @@ Vaihto periodiin 3 onnistuu ilman katkosta ennen ensimmäistä period 3 iltapeli
 
 ## Fallback (jos jokin menee pieleen)
 
-1. Palauta edellinen toimiva Excel
+1. Palauta edellinen toimiva rosteri-JSON
 2. Aja force-refresh
 3. Varmista `Lagen` + `Ställningen`
-4. Korjaa period 3 Excel ja toista vaihto
+4. Korjaa rosteri validatorissa ja toista vaihto

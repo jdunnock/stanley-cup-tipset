@@ -48,10 +48,10 @@ Käytä tätä mallia chatissa:
 
 Codespace EI näe automaattisesti Macin paikallisia tiedostoja.
 
-Jos tarvitset paikallisen Excelin:
-- vaihtoehto A: lisää tiedosto repoon (vain jos haluat versionhallintaan)
-- vaihtoehto B: lataa tiedosto appin upload-toiminnolla Codespacessa
-- vaihtoehto C: pidä data lokaalina ja tee datariippuvaiset ajot läppäriltä
+Tässä projektissa aktiivinen veikkausdata ei tarvitse paikallista Exceliä:
+- Stanley Cup -joukkueet syötetään validatorissa
+- rosterit tallennetaan repo-/storage-puolen JSON-tiedostoihin
+- datariippuvaiset ajot voi tehdä suoraan Codespacesta ilman erillistä uploadia
 
 ## 7) Suositeltu käytäntö tähän projektiin
 

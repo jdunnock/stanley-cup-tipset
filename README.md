@@ -2,20 +2,17 @@
 
 Stanley Cup tipping project based on nhl-stats baseline, with playoff-focused rules and data windows.
 
-## Reusable AI workflow kit
+## AI workflow
 
-Jos haluat käyttää samaa AI-työtapaa projektista toiseen ilman aloituskierrosta:
+Projektin paikallinen AI-työtapa löytyy näistä lähteistä:
 
-- Kit overview: [docs/workflow-kit/README.md](docs/workflow-kit/README.md)
-- 10 min copy checklist: [docs/workflow-kit/COPY-CHECKLIST.md](docs/workflow-kit/COPY-CHECKLIST.md)
-- Spec template: [docs/workflow-kit/templates/specification.template.md](docs/workflow-kit/templates/specification.template.md)
-- Skills templates: [docs/workflow-kit/templates/skills](docs/workflow-kit/templates/skills)
-- PR template: [docs/workflow-kit/templates/pull_request_template.md](docs/workflow-kit/templates/pull_request_template.md)
-- Project AI operating model: [docs/skills/ai-coding-operating-system.md](docs/skills/ai-coding-operating-system.md)
+- Project AI operating model: [.github/skills/ai-coding-operating-system/SKILL.md](.github/skills/ai-coding-operating-system/SKILL.md)
+- Change workflow: [.github/skills/chat-change-workflow/SKILL.md](.github/skills/chat-change-workflow/SKILL.md)
+- Prompt templates: [.github/skills/ai-prompt-templates/SKILL.md](.github/skills/ai-prompt-templates/SKILL.md)
 - Pre-merge quality gate: [docs/AI-QUALITY-GATE.md](docs/AI-QUALITY-GATE.md)
-- Latest quality gate report: [docs/quality-gate-report-2026-03-07.md](docs/quality-gate-report-2026-03-07.md)
-- Prompt templates (copy-paste): [docs/skills/ai-prompt-templates.md](docs/skills/ai-prompt-templates.md)
 - Mobile Codespaces quickstart: [docs/codespaces-mobile-quickstart.md](docs/codespaces-mobile-quickstart.md)
+
+Reusable bootstrap uusille projekteille ylläpidetään erillisessä `ai-project-template` repossa, ei tämän tuotantorepon sisällä.
 
 ## Tools
 
@@ -32,23 +29,18 @@ npm install
 npm start
 ```
 
-## Web UI (single page compare)
+## Web UI
 
-1. Lisää Excel-tiedosto kansioon `data/` (esim. `data/players.xlsx`)
-2. Tuettu formaatti:
-  - välilehti `Spelarna`
-  - sarake A = sukunimi
-  - sarake B = joukkue
-3. Käynnistä web-serveri:
+1. Käynnistä web-serveri:
 
 ```bash
 npm run start:web
 ```
 
-4. Avaa selaimessa `http://localhost:3000`
+2. Avaa selaimessa `http://localhost:3000`
 
-UI listaa tiedostot projektin juuresta ja `data/`-kansiosta.
-Voit myös ladata tiedoston suoraan UI:ssa (file input tai drag & drop), jolloin tiedosto tallennetaan automaattisesti `data/`-kansioon.
+Stanley Cup -joukkueet syötetään validator-sivulla `http://localhost:3000/team-validator.html`.
+Hyväksytty rosteri tallennetaan palvelimen hallitsemaan rosteri-JSONiin, jonka jälkeen `Lagen` ja `Ställningen` lukevat saman rosterilähteen.
 
 Yhdellä sivulla voit valita vertailupäivän (oletus `2026-01-24`) ja nähdä pelaajittain:
 - tämän päivän pisteet
@@ -72,7 +64,7 @@ Sovellus käyttää tallennuksiin oletuksena:
 
 Tallennettavat tiedostot:
 - SQLite: `app-settings.sqlite`
-- ladatut Excelit: `data/`
+- rosteri-JSONit: `data/period1-rosters.json`, `data/period3-rosters.json`
 
 `railway.json` käyttää käynnistystä `npm run start:web`, joten erillistä start-komentoa ei tarvitse muuttaa.
 
@@ -100,10 +92,10 @@ Tallennettavat tiedostot:
   - Tallenna vertailupäivä UI:sta (Save default date)
   - Tee uusi deploy ja varmista, että tallennettu vertailupäivä säilyy
 
-6. **Varmista tiedostopersistenssi**
-  - Lataa Excel UI:sta
+6. **Varmista rosteripersistenssi**
+  - Luo tai päivitä joukkue validatorissa
   - Tee deploy uudelleen
-  - Varmista, että ladattu tiedosto on edelleen valittavissa `excel files` -listassa
+  - Varmista, että rosteri näkyy edelleen `Lagen`- ja `Ställningen`-näkymissä
 
 ### Suositeltu Git + deploy flow
 
@@ -151,13 +143,13 @@ Jos deployn jälkeen UI/API näyttää vanhaa dataa tai vanhaa payload-rakennett
 
 3. Warmaa tarvittaessa summary-cache hallitusti
   - kutsu kerran:
-    - `GET /api/tipsen-summary?forceRefresh=true&file=<excel>`
+    - `GET /api/tipsen-summary?forceRefresh=true`
   - tämän jälkeen tavallinen `tipsen-summary` käyttää tuoretta cachea
 
 4. Nopea tuotantotarkistus
   - `GET /api/version` (deploymentId)
   - `GET /tipsen.js` (uusi frontend-koodi)
-  - `GET /api/tipsen-summary?file=<excel>` (uusi payload)
+  - `GET /api/tipsen-summary` (uusi payload)
 
 Suositus: pidä `RESPONSE_CACHE_VERSION` tyhjänä ellei tarvitse pakotettua overridea. Oletuksena sovellus käyttää deployment-kohtaista cache-tokenia ja invalidoi vanhan cachen automaattisesti.
 
@@ -204,9 +196,9 @@ Periodi 2 -> 3 siirtymän operatiiviset ohjeet:
 - D-day quick checklist (10 min): [docs/period3-d-day-checklist.md](docs/period3-d-day-checklist.md)
 - Spesin period 3 päätöskonteksti: [docs/specification.md](docs/specification.md)
 
-#### Temporary start without period3 Excel
+#### Period 3 rosterit validatorin jälkeen
 
-Jos period3 Excel ei ole saatavilla, period 3 voidaan käynnistää väliaikaisesti rosteri-JSONilla:
+Period 3 voidaan käynnistää rosteri-JSONilla, jota ylläpidetään validatorin kautta:
 
 1. Kopioi `data/period3-rosters.template.json` tiedostoksi `data/period3-rosters.json`
 2. Täytä kaikkien osallistujien rosterit (2 maalivahtia, 4 puolustajaa, 6 hyökkääjää)
@@ -214,8 +206,7 @@ Jos period3 Excel ei ole saatavilla, period 3 voidaan käynnistää väliaikaise
 4. Aja daily refresh (`/api/cron/daily-refresh?force=true`) ja tarkista että blokkireason poistuu
 
 Huom:
-- Kun oikea period3 Excel on saatavilla, se ohittaa automaattisesti tämän väliaikaisen rosterilähteen.
-- `tipsen-summary` palauttaa kentän `rosterSource`, josta näet käytetäänkö `excel` vai `temporary_period3_rosters`.
+- `tipsen-summary` palauttaa kentän `rosterSource`, josta näet käytetäänkö `temporary_period3_rosters` lähdettä.
 
 ### Nyheter release notes
 
@@ -235,15 +226,15 @@ Esimerkit:
 
 ```bash
 # Kerää snapshot tälle päivälle (lokaalisti)
-curl -sS "http://127.0.0.1:3000/api/nyheter/collect?file=NHL%20tipset%202026%20jan-apr%20period2.xlsx&seasonId=20252026"
+curl -sS "http://127.0.0.1:3000/api/nyheter/collect?seasonId=20252026"
 
 # Hae viimeiset 7 snapshotia
-curl -sS "http://127.0.0.1:3000/api/nyheter/snapshots?file=NHL%20tipset%202026%20jan-apr%20period2.xlsx&seasonId=20252026&limit=7"
+curl -sS "http://127.0.0.1:3000/api/nyheter/snapshots?seasonId=20252026&limit=7"
 ```
 
 Huom:
 - Jos `CRON_JOB_TOKEN` on asetettu, `nyheter/collect` vaatii `x-cron-token`-headerin (tai admin basic authin).
-- Onnistuneen `daily-refresh`-ajon jälkeen backend kerää snapshotin automaattisesti kohdepäivälle kaikista löydetyistä Excel-tiedostoista.
+- Onnistuneen `daily-refresh`-ajon jälkeen backend kerää snapshotin automaattisesti aktiivisesta rosterilähteestä.
 
 #### Weekly data check (pelaajat + veikkaajat)
 
@@ -259,11 +250,10 @@ Tämä tulostaa mm.:
 - tämänhetkisen `tipsen-summary` datan osallistuja- ja pelaajarivimäärät
 - `not_found`-määrän sekä top-3 osallistujat
 
-Tarvittaessa voit kohdistaa checkin eri ympäristöön tai tiedostoon:
+Tarvittaessa voit kohdistaa checkin eri ympäristöön:
 
 ```bash
 BASE_URL="https://nhl-stats-production.up.railway.app" \
-EXCEL_FILE="NHL tipset 2026 jan-apr period2.xlsx" \
 SEASON_ID="20252026" \
 npm run nyheter:check
 ```
@@ -276,23 +266,14 @@ curl -sS https://nhl-stats-production.up.railway.app/api/health
 curl -sS -H "x-cron-token: $CRON_JOB_TOKEN" \
   "https://nhl-stats-production.up.railway.app/api/cron/daily-refresh"
 
-# 2) Gate-check (odotettu blokkireason ilman period 3 Exceliä 16.3 aamusta eteenpäin)
+# 2) Gate-check (odotettu blokkireason ilman period 3 rosteria 16.3 aamusta eteenpäin)
 curl -sS -H "x-cron-token: $CRON_JOB_TOKEN" \
   "https://nhl-stats-production.up.railway.app/api/cron/daily-refresh?date=2026-03-15"
 
-# 3) Go-live jälkeen: pakotettu ajo uuden period 3 Excelin kanssa
+# 3) Go-live jälkeen: pakotettu ajo uuden period 3 rosterin kanssa
 curl -sS -H "x-cron-token: $CRON_JOB_TOKEN" \
   "https://nhl-stats-production.up.railway.app/api/cron/daily-refresh?force=true"
 ```
-
-### Oletus: NHL tipset -tiedosto
-
-- Jos projektin juuressa on tiedosto `NHL tipset 2026 jan-apr period1.xlsx`, UI käyttää sitä oletuksena.
-- Välilehti: `Spelarna`
-- Sarake A: sukunimi
-- Sarake B: joukkue (esim. `Dallas`, `Edmonton`)
-
-Sovellus täsmäyttää pelaajan muodolla `sukunimi + joukkue` ja hakee kauden `20252026` runkosarjadatan vertailua varten.
 
 ## Admin access protection
 
@@ -306,10 +287,10 @@ Aseta env-muuttujat:
 Kun molemmat on asetettu, nämä reitit vaativat kirjautumisen:
 
 - `/admin.html`
-- `/app.js` (admin-frontend)
-- `POST /api/upload-excel`
+- `/team-validator.html`
+- `/team-validator.js`
 - `POST /api/settings/compare-date`
-- `GET /api/spelarna-reconciliation`
+- `POST /api/team-validator`
 
 Jos envit puuttuvat, suojaus on pois päältä (nykyinen käytös).
 
@@ -323,7 +304,7 @@ Esimerkki:
 
 ```bash
 curl -u "$ADMIN_BASIC_USER:$ADMIN_BASIC_PASS" \
-  "https://nhl-stats-production.up.railway.app/api/tipsen-summary?file=<excel>&debugCache=1"
+  "https://nhl-stats-production.up.railway.app/api/tipsen-summary?debugCache=1"
 ```
 
 ## Quick test
