@@ -93,7 +93,7 @@ Hyväksymiskriteerit:
 - Ulkoasu käyttää samaa visuaalista design-linjaa kuin Figmaan päivitetty `lagen`-näkymä
 - Sivu näyttää periodin mukaan yhden kahdesta total-taulukosta:
   - ennen period 3:a: `Totalställning Period 1+2`
-  - period 3:ssa: `Totalställning Period 1+2+3`
+  - Stanley Cup -vaiheessa: `Totalställning inklusive Stanley Cup`
 - Period 1 -pisteet ovat kiinteät:
   - Mattias 20, Fredrik 16, Joakim 13, Jarmo 11, Timmy 9, Kjell 7, Henrik 5
 - Period 2 -sijoituspisteasteikko (käytetään period 2 totaliin):
@@ -106,8 +106,9 @@ Hyväksymiskriteerit:
 - Period 3:ssa period 2 pisteet lukitaan period 2 lopputuloksen mukaisiksi:
   - Timmy 20, Fredrik 16, Joakim 13, Mattias 11, Kjell 9, Jarmo 7, Henrik 5
 - Period 3 -näkymässä otsikot ovat:
-  - `Ställning Period 3`
-  - `Totalställning Period 1+2+3`
+  - `Ställning Stanley Cup`
+  - `Totalställning inklusive Stanley Cup`
+- UI:ssa käytetään Stanley Cup -vaiheessa lyhennettä `SC` vanhan `P3`-otsikon sijaan, jotta näkyvä sanasto vastaa nykyistä kilpailua vaikka pisteasteikko periytyy vanhan 3-periodisen mallin period 3:sta.
 
 ### 3.3.1 Nyheter-näkymä (pilot, low-risk)
 - Uusi ruotsinkielinen `Nyheter`-sivu tehdään ensin pilot-versiona (`nyheter.html` + `nyheter.js`)
@@ -288,6 +289,10 @@ Kun käytät PR:ää, käytä tätä:
 - 2026-04-18
   - Siivottu README vastaamaan nykyistä JSON-roster + validator -mallia: poistettu vanhat `workflow-kit`, `docs/skills`, Excel-upload ja vanhentuneet admin-endpoint -viittaukset
   - Täsmennetty period 3 runbookin gate-reason vastaamaan nykyistä backend-signaalia `period3_rosters_missing`
+  - Selkeytetty nykyisen Stanley Cup -kilpailun näkyvää terminologiaa: `Ställningen` käyttää nyt käyttäjälle näkyvissä otsikoissa ja sarakkeissa `Stanley Cup` / `SC` -sanastoa vanhan `Period 3` / `P3` -sanaston sijaan
+  - Dokumentoitu, että nykyinen Stanley Cup -pisteytys käyttää vanhan 3-periodisen mallin period 3 -asteikkoa, mutta tätä legacy-termiä ei enää näytetä käyttöliittymässä kilpailun nimenä
+  - Päivitetty README:n operointisanasto vastaamaan nykyistä Stanley Cup -vaihetta; käyttäjälle näkyvissä ohjeissa ei enää puhuta period 3 Excelistä vaikka legacy-tiedostonimi `period3-rosters.json` säilyy teknisenä nimenä
+  - Palautettu `public/team-validator.html` GitHubissa olevaan muotoon, jotta formatter-only diff ei sotke tämän päivän tarkoitettuja muutoksia
 
 - 2026-04-17
   - Päivitetty kanoninen nykytila JSON-only-roster-malliin: Stanley Cup -joukkueet syötetään validatorissa ja tallennetaan rosteri-JSONeihin, eikä Excel ole osa aktiivista tuotantopolkua
@@ -448,10 +453,12 @@ Period 3:ssa käytetään eri sijoituspisteitä kuin periodeissa 1-2:
 1) Periodikonfiguraatio
 - Period 3 raja on `2026-03-15` (otteluikkunan alku).
 - Period 3 total käyttää omaa pisteasteikkoa (`30,24,19,15,12,10,8,6,4,2,1`).
+- Nykyinen Stanley Cup -kilpailu käyttää tätä samaa pisteasteikkoa, mutta käyttäjälle näkyvä UI nimeää vaiheen `Stanley Cup` eikä `Period 3`.
 
 2) Ställningen-näkymä
 - Period 2 loppuun asti näytetään `Slutställning Period 2` + `Totalställning Period 1+2`.
-- Period 3:ssa näytetään `Ställning Period 3` + `Totalställning Period 1+2+3`.
+- Stanley Cup -vaiheessa näytetään `Ställning Stanley Cup` + `Totalställning inklusive Stanley Cup`.
+- Stanley Cup -vaiheen total-taulukossa sarakkeet näytetään muodossa `P1`, `P2`, `SC`, `Totalt`.
 
 3) Admin- ja operointipolku
 - Aktiivinen periodi ohjataan `compareDate` arvolla (`POST /api/settings/compare-date`).
@@ -465,7 +472,7 @@ Period 3:ssa käytetään eri sijoituspisteitä kuin periodeissa 1-2:
 ### 11.5 Tehdyt päätökset
 
 - Periodivaihto tehdään manuaalisena admin-toimena `compareDate` kentän kautta.
-- UI näyttää aktiivisen periodin otsikkotasolla (`Period 2` vs `Period 3`).
+- UI näyttää aktiivisen vaiheen otsikkotasolla (`Period 2` vs `Stanley Cup`).
 - Period 1+2 lukitaan period 3 total-laskennassa käyttämällä period 2 lopputuloksen pistejakaumaa.
 
 ### 11.10 Backoffice: Period 3 joukkuevalidatori

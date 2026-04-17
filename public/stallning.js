@@ -6,9 +6,9 @@ const totalTitleEl = document.getElementById("totalTitle");
 
 const DEFAULT_SEASON_ID = "20252026";
 const DEFAULT_COMPARE_DATE = "2026-01-24";
-const PERIOD_THREE_START_DATE = "2026-03-15";
+const STANLEY_CUP_START_DATE = "2026-03-15";
 const PERIOD_TWO_POINTS_SCALE = [20, 16, 13, 11, 9, 7, 5, 4, 3, 2, 1];
-const PERIOD_THREE_POINTS_SCALE = [30, 24, 19, 15, 12, 10, 8, 6, 4, 2, 1];
+const STANLEY_CUP_POINTS_SCALE = [30, 24, 19, 15, 12, 10, 8, 6, 4, 2, 1];
 const PERIOD_ONE_POINTS = new Map([
   ["mattias", 20],
   ["fredrik", 16],
@@ -128,22 +128,22 @@ function renderTotalStandings(participants) {
 
   totalListEl.innerHTML = "";
 
-  const isPeriodThreeActive = participants.some((participant) => participant.periodThreePoints !== undefined);
+  const isStanleyCupActive = participants.some((participant) => participant.stanleyCupPoints !== undefined);
 
   const header = document.createElement("div");
   header.className = "row total header";
-  if (isPeriodThreeActive) {
+  if (isStanleyCupActive) {
     header.style.gridTemplateColumns = "40px 1fr 46px 46px 46px 66px";
   }
-  header.innerHTML = isPeriodThreeActive
-    ? "<div>Plac</div><div>Deltagare</div><div>P1</div><div>P2</div><div>P3</div><div>Totalt</div>"
+  header.innerHTML = isStanleyCupActive
+    ? "<div>Plac</div><div>Deltagare</div><div>P1</div><div>P2</div><div>SC</div><div>Totalt</div>"
     : "<div>Plac</div><div>Deltagare</div><div>P1</div><div>P2</div><div>Totalt</div>";
   totalListEl.appendChild(header);
 
   participants.forEach((participant) => {
     const row = document.createElement("div");
     row.className = "row total";
-    if (isPeriodThreeActive) {
+    if (isStanleyCupActive) {
       row.style.gridTemplateColumns = "40px 1fr 46px 46px 46px 66px";
     }
 
@@ -165,10 +165,10 @@ function renderTotalStandings(participants) {
     periodTwo.textContent = formatPoints(participant.periodTwoPoints);
     applyPointsClass(periodTwo, participant.periodTwoPoints);
 
-    const periodThree = document.createElement("div");
-    periodThree.className = "points";
-    periodThree.textContent = formatPoints(participant.periodThreePoints);
-    applyPointsClass(periodThree, participant.periodThreePoints);
+    const stanleyCup = document.createElement("div");
+    stanleyCup.className = "points";
+    stanleyCup.textContent = formatPoints(participant.stanleyCupPoints);
+    applyPointsClass(stanleyCup, participant.stanleyCupPoints);
 
     const total = document.createElement("div");
     total.className = "points";
@@ -179,8 +179,8 @@ function renderTotalStandings(participants) {
     row.appendChild(name);
     row.appendChild(periodOne);
     row.appendChild(periodTwo);
-    if (isPeriodThreeActive) {
-      row.appendChild(periodThree);
+    if (isStanleyCupActive) {
+      row.appendChild(stanleyCup);
     }
     row.appendChild(total);
 
@@ -188,19 +188,19 @@ function renderTotalStandings(participants) {
   });
 }
 
-function isPeriodThreeActive(compareDate) {
-  return String(compareDate ?? "") >= PERIOD_THREE_START_DATE;
+function isStanleyCupActive(compareDate) {
+  return String(compareDate ?? "") >= STANLEY_CUP_START_DATE;
 }
 
 function updateSectionTitles(compareDate) {
-  const periodThree = isPeriodThreeActive(compareDate);
+  const stanleyCup = isStanleyCupActive(compareDate);
 
   if (periodTitleEl) {
-    periodTitleEl.textContent = periodThree ? "Ställning Stanley Cup" : "Slutställning Period 2";
+    periodTitleEl.textContent = stanleyCup ? "Ställning Stanley Cup" : "Slutställning Period 2";
   }
 
   if (totalTitleEl) {
-    totalTitleEl.textContent = periodThree ? "Totalställning Period 1+2+3" : "Totalställning Period 1+2";
+    totalTitleEl.textContent = stanleyCup ? "Totalställning inklusive Stanley Cup" : "Totalställning Period 1+2";
   }
 }
 
@@ -287,25 +287,25 @@ function buildScalePointsByName(sortedParticipants, scale) {
 }
 
 function buildTotalPeriodStandings(sortedParticipants, compareDate) {
-  const periodThree = isPeriodThreeActive(compareDate);
+  const stanleyCup = isStanleyCupActive(compareDate);
   const periodPointsByName = buildScalePointsByName(
     sortedParticipants,
-    periodThree ? PERIOD_THREE_POINTS_SCALE : PERIOD_TWO_POINTS_SCALE
+    stanleyCup ? STANLEY_CUP_POINTS_SCALE : PERIOD_TWO_POINTS_SCALE
   );
 
   const sortedTotalStandings = sortedParticipants
     .map((participant) => {
       const key = normalizeParticipantName(participant.name);
       const periodOnePoints = PERIOD_ONE_POINTS.get(key) ?? 0;
-      const periodTwoPoints = periodThree ? (PERIOD_TWO_FINAL_POINTS.get(key) ?? 0) : (periodPointsByName.get(key) ?? 0);
-      const periodThreePoints = periodThree ? (periodPointsByName.get(key) ?? 0) : undefined;
+      const periodTwoPoints = stanleyCup ? (PERIOD_TWO_FINAL_POINTS.get(key) ?? 0) : (periodPointsByName.get(key) ?? 0);
+      const stanleyCupPoints = stanleyCup ? (periodPointsByName.get(key) ?? 0) : undefined;
 
       return {
         name: participant.name,
         periodOnePoints,
         periodTwoPoints,
-        periodThreePoints,
-        totalPeriodPoints: periodOnePoints + periodTwoPoints + (periodThreePoints ?? 0),
+        stanleyCupPoints,
+        totalPeriodPoints: periodOnePoints + periodTwoPoints + (stanleyCupPoints ?? 0),
       };
     })
     .sort((left, right) => {

@@ -1,4 +1,26 @@
 {
   "enabled": false,
-  "participants": []
+  "participants": [
+    {
+      "name": "Jarmo",
+      "goalies": [
+        "Andrei Vasilevskiy (TBL)",
+        "Tristan Jarry (EDM)"
+      ],
+      "defenders": [
+        "Erik Karlsson (PIT)",
+        "Miro Heiskanen (DAL)",
+        "Mikhail Sergachev (UTA)",
+        "Jackson LaCombe (ANA)"
+      ],
+      "forwards": [
+        "Nikita Kucherov (TBL)",
+        "Kirill Kaprizov (MIN)",
+        "Sebastian Aho (CAR)",
+        "Sidney Crosby (PIT)",
+        "Adrian Kempe (LAK)",
+        "Andrei Svechnikov (CAR)"
+      ]
+    }
+  ]
 }

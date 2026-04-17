@@ -2,17 +2,20 @@
 
 Stanley Cup tipping project based on nhl-stats baseline, with playoff-focused rules and data windows.
 
-## AI workflow
+## Reusable AI workflow kit
 
-Projektin paikallinen AI-työtapa löytyy näistä lähteistä:
+Jos haluat käyttää samaa AI-työtapaa projektista toiseen ilman aloituskierrosta:
 
-- Project AI operating model: [.github/skills/ai-coding-operating-system/SKILL.md](.github/skills/ai-coding-operating-system/SKILL.md)
-- Change workflow: [.github/skills/chat-change-workflow/SKILL.md](.github/skills/chat-change-workflow/SKILL.md)
-- Prompt templates: [.github/skills/ai-prompt-templates/SKILL.md](.github/skills/ai-prompt-templates/SKILL.md)
+- Kit overview: [docs/workflow-kit/README.md](docs/workflow-kit/README.md)
+- 10 min copy checklist: [docs/workflow-kit/COPY-CHECKLIST.md](docs/workflow-kit/COPY-CHECKLIST.md)
+- Spec template: [docs/workflow-kit/templates/specification.template.md](docs/workflow-kit/templates/specification.template.md)
+- Skills templates: [docs/workflow-kit/templates/skills](docs/workflow-kit/templates/skills)
+- PR template: [docs/workflow-kit/templates/pull_request_template.md](docs/workflow-kit/templates/pull_request_template.md)
+- Project AI operating model: [docs/skills/ai-coding-operating-system.md](docs/skills/ai-coding-operating-system.md)
 - Pre-merge quality gate: [docs/AI-QUALITY-GATE.md](docs/AI-QUALITY-GATE.md)
+- Latest quality gate report: [docs/quality-gate-report-2026-03-07.md](docs/quality-gate-report-2026-03-07.md)
+- Prompt templates (copy-paste): [docs/skills/ai-prompt-templates.md](docs/skills/ai-prompt-templates.md)
 - Mobile Codespaces quickstart: [docs/codespaces-mobile-quickstart.md](docs/codespaces-mobile-quickstart.md)
-
-Reusable bootstrap uusille projekteille ylläpidetään erillisessä `ai-project-template` repossa, ei tämän tuotantorepon sisällä.
 
 ## Tools
 
@@ -188,17 +191,17 @@ Ilman `force=true` endpoint ajaa force refreshin vain kun:
 
 Tunnin välein kutsuminen on suositeltu, koska se välttää kesä-/talviaikaoffsetin ylläpitotarpeen ja readiness-gate estää liian aikaisen päivityksen.
 
-### Period 3 operations
+### Stanley Cup operations
 
-Periodi 2 -> 3 siirtymän operatiiviset ohjeet:
+Periodi 2 -> Stanley Cup -vaiheen operatiiviset ohjeet:
 
 - Go-live runbook: [docs/period3-go-live-runbook.md](docs/period3-go-live-runbook.md)
 - D-day quick checklist (10 min): [docs/period3-d-day-checklist.md](docs/period3-d-day-checklist.md)
-- Spesin period 3 päätöskonteksti: [docs/specification.md](docs/specification.md)
+- Spesin Stanley Cup -päätöskonteksti: [docs/specification.md](docs/specification.md)
 
-#### Period 3 rosterit validatorin jälkeen
+#### Stanley Cup rosterit validatorin jälkeen
 
-Period 3 voidaan käynnistää rosteri-JSONilla, jota ylläpidetään validatorin kautta:
+Stanley Cup -vaihe voidaan käynnistää rosteri-JSONilla, jota ylläpidetään validatorin kautta. Legacy-tiedostonimi säilyy edelleen muodossa `period3-rosters.json`:
 
 1. Kopioi `data/period3-rosters.template.json` tiedostoksi `data/period3-rosters.json`
 2. Täytä kaikkien osallistujien rosterit (2 maalivahtia, 4 puolustajaa, 6 hyökkääjää)
@@ -250,10 +253,11 @@ Tämä tulostaa mm.:
 - tämänhetkisen `tipsen-summary` datan osallistuja- ja pelaajarivimäärät
 - `not_found`-määrän sekä top-3 osallistujat
 
-Tarvittaessa voit kohdistaa checkin eri ympäristöön:
+Tarvittaessa voit kohdistaa checkin eri ympäristöön tai tiedostoon:
 
 ```bash
 BASE_URL="https://nhl-stats-production.up.railway.app" \
+EXCEL_FILE="NHL tipset 2026 jan-apr period2.xlsx" \
 SEASON_ID="20252026" \
 npm run nyheter:check
 ```
@@ -266,14 +270,23 @@ curl -sS https://nhl-stats-production.up.railway.app/api/health
 curl -sS -H "x-cron-token: $CRON_JOB_TOKEN" \
   "https://nhl-stats-production.up.railway.app/api/cron/daily-refresh"
 
-# 2) Gate-check (odotettu blokkireason ilman period 3 rosteria 16.3 aamusta eteenpäin)
+# 2) Gate-check (odotettu blokkireason ilman Stanley Cup -rosteria 16.3 aamusta eteenpäin)
 curl -sS -H "x-cron-token: $CRON_JOB_TOKEN" \
   "https://nhl-stats-production.up.railway.app/api/cron/daily-refresh?date=2026-03-15"
 
-# 3) Go-live jälkeen: pakotettu ajo uuden period 3 rosterin kanssa
+# 3) Go-live jälkeen: pakotettu ajo uuden Stanley Cup -rosterin kanssa
 curl -sS -H "x-cron-token: $CRON_JOB_TOKEN" \
   "https://nhl-stats-production.up.railway.app/api/cron/daily-refresh?force=true"
 ```
+
+### Oletus: NHL tipset -tiedosto
+
+- Jos projektin juuressa on tiedosto `NHL tipset 2026 jan-apr period1.xlsx`, UI käyttää sitä oletuksena.
+- Välilehti: `Spelarna`
+- Sarake A: sukunimi
+- Sarake B: joukkue (esim. `Dallas`, `Edmonton`)
+
+Sovellus täsmäyttää pelaajan muodolla `sukunimi + joukkue` ja hakee kauden `20252026` runkosarjadatan vertailua varten.
 
 ## Admin access protection
 
@@ -287,10 +300,10 @@ Aseta env-muuttujat:
 Kun molemmat on asetettu, nämä reitit vaativat kirjautumisen:
 
 - `/admin.html`
-- `/team-validator.html`
-- `/team-validator.js`
+- `/app.js` (admin-frontend)
+- `POST /api/upload-excel`
 - `POST /api/settings/compare-date`
-- `POST /api/team-validator`
+- `GET /api/spelarna-reconciliation`
 
 Jos envit puuttuvat, suojaus on pois päältä (nykyinen käytös).
 
@@ -304,7 +317,7 @@ Esimerkki:
 
 ```bash
 curl -u "$ADMIN_BASIC_USER:$ADMIN_BASIC_PASS" \
-  "https://nhl-stats-production.up.railway.app/api/tipsen-summary?debugCache=1"
+  "https://nhl-stats-production.up.railway.app/api/tipsen-summary?file=<excel>&debugCache=1"
 ```
 
 ## Quick test
