@@ -49,7 +49,7 @@ const PERIOD3_TEMP_ROSTERS_FILE = "period3-rosters.json";
 const PERIOD1_TEMP_ROSTERS_FILE = "period1-rosters.json";
 const PERIOD3_VALIDATOR_SEASON_ID = "20252026";
 const PERIOD3_VALIDATOR_RANKING_FROM = "2025-10-07";
-const PERIOD3_VALIDATOR_RANKING_TO = "2026-04-15";
+const PERIOD3_VALIDATOR_RANKING_TO = "2026-04-17";
 const SUPPORTED_COMPETITION_TYPES = ["stanley_cup", "autumn"];
 const DEFAULT_COMPETITION_TYPE = "stanley_cup";
 const DEFAULT_COMPETITION_RANKING_WINDOWS = {
@@ -2550,7 +2550,7 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
     return token || "";
   }
 
-  const cayenneExp = `seasonId=${seasonId} and gameTypeId=3 and gameDate<="${toDate}" and gameDate>="${fromDate}"`;
+  const cayenneExp = `seasonId=${seasonId} and gameTypeId=2 and gameDate<="${toDate}" and gameDate>="${fromDate}"`;
   const skaterRows = await fetchStatsSummaryAll({
     entity: "skater",
     sortExpr: [
@@ -3707,7 +3707,7 @@ async function resolvePlayersFromInputPlayers(players) {
         inputTeam: player.teamName,
         playerId: null,
         status: "missing_player_id",
-        error: "Excel row is missing playerId/nhlPlayerId/id column or could not be resolved from surname+team",
+        error: "Roster entry could not be resolved to an NHL player from surname+team",
         rowNumber: player.rowNumber,
       });
       continue;

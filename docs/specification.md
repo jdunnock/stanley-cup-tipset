@@ -1,21 +1,23 @@
-ei t# NHL Stats - Tuotespesifikaatio ja AI-työworkflow (v2)
+# NHL Stats - Tuotespesifikaatio ja AI-työworkflow (v2)
 
 Tämä dokumentti on tämän projektin ensisijainen sovellusspesifikaatio.
 
 ## 1. Mitä tämä sovellus tekee
 
-Sovellus vertailee NHL-pelaajien pisteitä Excel-listaan perustuen.
+Sovellus näyttää Stanley Cup -veikkauksen osallistujien joukkueet ja pisteet JSON-rosterien perusteella.
 
 Päätulokset:
+- Stanley Cup validator -sivulla syötetään yksi osallistujajoukkue kerrallaan.
+- Hyväksytty joukkue tallennetaan mukaan veikkaukseen rosteri-JSONiin.
 - Admin-sivu näyttää pelaajarivit, vertailupäivän pisteet, nykyiset pisteet ja erotuksen.
 - Osallistujasivu (lagen.html) näyttää joukkueet ja pelaajakohtaiset pisteet selkeässä taulukossa.
-- Data tulee NHL API:sta, pelaajat täsmäytetään Excelin perusteella.
+- Data tulee NHL API:sta, ja rosterit luetaan palvelimen hallitsemista JSON-tiedostoista.
 
 ## 2. Nykyinen arkkitehtuuri
 
 - Backend: Node.js + Express
-- Data/parsing: xlsx
-- Persistenssi: SQLite (app-settings + response cache)
+- Rosteridata: JSON-tiedostot (`period1-rosters.json`, `period3-rosters.json`)
+- Persistenssi: SQLite (app-settings + response cache) + rosteri-JSONit
 - UI: staattiset sivut public-kansiossa
 - Deploy: Railway
 
@@ -28,13 +30,11 @@ Pääsijainnit:
 ## 3. Sovelluksen toiminnallinen scope (nykytila)
 
 ### 3.1 Admin-näkymä
-- Excel-tiedoston valinta / upload
 - Vertailupäivän tallennus
 - Vertailupäivä on tarkistus- ja vertailutyökalu (delta nykytilaan), eikä se muuta periodi- tai veikkauskonfiguraatiota
 - Admin UI on ryhmitelty kahteen pääosaan: `Veikkauksen hallinta` ja `Tarkistelutyökalu`
 - Pelaajien pistevertailu
 - Maalivahtien ja muiden pelaajien erottelu omiin osioihin
-- Reconciliation-raportti mismatch-riveille
 - Mobiilikäytössä admin-sivua ei näytetä
 - Admin-reitit voidaan suojata HTTP Basic Authilla ympäristömuuttujilla (`ADMIN_BASIC_USER`, `ADMIN_BASIC_PASS`)
 - Startup tekee admin-auth konfiguraatiotarkistuksen: `ADMIN_BASIC_USER` ja `ADMIN_BASIC_PASS` pitää olla joko molemmat asetettuina tai molemmat tyhjiä
@@ -285,6 +285,13 @@ Kun käytät PR:ää, käytä tätä:
 
 ## 7. Muutosloki
 
+- 2026-04-17
+  - Päivitetty kanoninen nykytila JSON-only-roster-malliin: Stanley Cup -joukkueet syötetään validatorissa ja tallennetaan rosteri-JSONeihin, eikä Excel ole osa aktiivista tuotantopolkua
+  - Palautettu backward compatibility -alias validatorille: vanha polku `period3-validator.html` ohjaa nyt sivulle `team-validator.html`, jotta vanhat bookmarkit ja sisäiset linkit eivät kaadu `Cannot GET /period3-validator.html` -virheeseen
+  - Kovennettu validator-UI:n virheenkäsittelyä: jos API palauttaa HTML:n tai muun ei-JSON-vastauksen, sivu näyttää nyt selkeän endpoint-virheen eikä geneeristä `Unexpected token '<'` -parse-virhettä
+  - Korjattu validatorin ranking-haku käyttämään runkosarjan stats-summary dataa (`gameTypeId=2`) playoff-datan sijaan (`gameTypeId=3`), koska validatorin rankingikkuna 7.10.2025 - 17.4.2026 kuuluu runkosarjaan; tämä palauttaa pelaajat taas rankinglistalle ja aktivoi bandi- sekä maalivahtirank-tarkistukset oikein
+  - Päivitetty Stanley Cup -validatorin rankingikkunan oletuspäättymispäivä `2026-04-17`:ään koodissa, adminissa ja validator-UI:ssa
+
 - 2026-03-24
   - Skills siirretty `docs/skills/` → `.github/skills/` VS Code Copilot -taitoina (YAML frontmatter + oikea hakemisto), jotta Copilot lataa ne automaattisesti
   - `docs/skills/` kansio poistettu kokonaan
@@ -428,8 +435,8 @@ Period 3:ssa käytetään eri sijoituspisteitä kuin periodeissa 1-2:
 
 ### 11.3 Datan hallinta periodille 3
 
-- Ensisijainen lähde on period 3 Excel, kun se on saatavilla.
-- Fallback-lähteenä voidaan käyttää `data/period3-rosters.json` tiedostoa (`enabled=true`) kun period 3 Excel puuttuu.
+- Period 3 rosterit syötetään validatorin kautta ja tallennetaan `data/period3-rosters.json` tiedostoon.
+- Excel ei ole osa aktiivista tuotantopolkua.
 - Nykyinen period 1+2 -kokonaisuus säilyy historiallisena vertailuna, ja period 2 pisteet lukitaan period 3:n total-laskennassa.
 
 ### 11.4 Toteutettu sovellusmalli
@@ -445,6 +452,7 @@ Period 3:ssa käytetään eri sijoituspisteitä kuin periodeissa 1-2:
 3) Admin- ja operointipolku
 - Aktiivinen periodi ohjataan `compareDate` arvolla (`POST /api/settings/compare-date`).
 - Käyttöönottotarkistus tehdään `tipsen-summary` vastauksen kentästä `rosterSource` (`period1_preview`, `temporary_period1_rosters` tai `temporary_period3_rosters`).
+- Uudet Stanley Cup -joukkueet luodaan validator-sivulla ja hyväksytyt rosterit tallennetaan JSON-muodossa mukaan veikkaukseen.
 
 4) Ajastus ja readiness
 - Päivittäinen auto refresh säilyy, mutta period 3 rajan jälkeen ajo estyy kunnes period 3 rosterilähde on käytettävissä (`period3-rosters.json`).
@@ -465,6 +473,7 @@ Tavoite:
 Toteutus:
 - API: `POST /api/team-validator`
 - Backoffice UI: `team-validator.html` (+ `team-validator.js`)
+- Yhteensopivuus: vanha URL `period3-validator.html` ohjataan nykyiseen UI:hin `team-validator.html`
 - Työkalu on admin-suojattu (ei julkinen näkymä)
 
 #### Syöteformaatti (yksi osallistuja kerrallaan)
@@ -599,7 +608,7 @@ Suositeltu raportointi:
 - 2026-03-23
   - Uudelleennimetty sivu `period3-validator.html` → `team-validator.html` ja vastaava moduuli + API-endpoint `/api/period3/validate-team` → `/api/team-validator` (sekä sisäinen funktio `validatePeriod3TeamSelection` → `validateTeam`)
   - Poistettu team-validatorin UI:sta Excel-tiedoston valinta (käytetään nyt vain palvelimen oletusarvoa), koska period 2 -tiedosto ei enää ole käytössä
-  - Päivitetty team-validatorin "Ranking to" -päivämäärä: `2025-12-26` → `2026-04-15`
+  - Päivitetty team-validatorin "Ranking to" -päivämäärä: `2025-12-26` → `2026-04-17`
   - Toteutettu Period 1 -joukkueiden tallennus: kun osallistuja läpäisee validoinnin team-validatorilla, tiimi tallennetaan automaattisesti `data/period1-rosters.json`:iin
   - Team-validatorin UI näyttää success-viestin "✓ Validointi onnistui ja tiimi lisätty Period 1:een" kun roster tallentuu onnistuneesti
   - **Refaktoroitu validaattorin omistussääntö periodiksi-huolimattomaksi:**

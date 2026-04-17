@@ -65,7 +65,17 @@ async function validateRoster() {
       body: JSON.stringify(payload),
     });
 
-    const body = await response.json();
+    const rawBody = await response.text();
+    let body = null;
+
+    try {
+      body = rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      throw new Error(
+        `Validator API palautti ei-JSON-vastauksen (${response.status} ${response.statusText}): ${rawBody.slice(0, 120)}`
+      );
+    }
+
     if (!response.ok || !body?.ok) {
       throw new Error(body?.error || "Validointi epäonnistui");
     }
