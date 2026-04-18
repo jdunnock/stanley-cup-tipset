@@ -84,6 +84,69 @@
         "Malkin (PIT)",
         "Hischier (NJD)"
       ]
+    },
+    {
+      "name": "Henrik",
+      "goalies": [
+        "Hellebuyck (WPG)",
+        "Oettinger (DAL)"
+      ],
+      "defenders": [
+        "McAvoy (BOS)",
+        "Carlson (ANA)",
+        "Josi (NSH)",
+        "Sanderson (OTT)"
+      ],
+      "forwards": [
+        "Thompson (BUF)",
+        "Crosby (PIT)",
+        "Caufield (MTL)",
+        "MacKinnon (COL)",
+        "Suzuki (MTL)",
+        "Stone (VGK)"
+      ]
+    },
+    {
+      "name": "Joakim",
+      "goalies": [
+        "Hellebuyck (WPG)",
+        "Bobrovsky (FLA)"
+      ],
+      "defenders": [
+        "Heiskanen (DAL)",
+        "Morrissey (WPG)",
+        "Schaefer (NYI)",
+        "Karlsson (PIT)"
+      ],
+      "forwards": [
+        "Panarin (LAK)",
+        "Thomas (STL)",
+        "Eichel (VGK)",
+        "McDavid (EDM)",
+        "Pastrnak (BOS)",
+        "Point (TBL)"
+      ]
+    },
+    {
+      "name": "Jarmo",
+      "goalies": [
+        "Lyon (BUF)",
+        "Oettinger (DAL)"
+      ],
+      "defenders": [
+        "Schaefer (NYI)",
+        "Seider (DET)",
+        "Raddysh (TBL)",
+        "DeAngelo (NYI)"
+      ],
+      "forwards": [
+        "Celebrini (SJS)",
+        "Johnston (DAL)",
+        "Thomas (STL)",
+        "Point (TBL)",
+        "Keller (UTA)",
+        "Holloway (STL)"
+      ]
     }
   ]
 }
