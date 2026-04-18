@@ -3737,6 +3737,12 @@ app.get("/api/version", (_req, res) => {
       deploymentId: process.env.RAILWAY_DEPLOYMENT_ID || "",
       environmentName: process.env.RAILWAY_ENVIRONMENT || "",
     },
+    paths: {
+      rootDir,
+      storageRoot,
+      dataDir,
+      volumeMountPath: process.env.RAILWAY_VOLUME_MOUNT_PATH || "",
+    },
   });
 });
 
