@@ -288,6 +288,7 @@ Kun käytät PR:ää, käytä tätä:
 ## 7. Muutosloki
 
 - 2026-04-18
+  - Korjattu maalivahtien ranking-tiebreaker: vaihdettu aakkosjärjestyksestä `gamesPlayed DESC` -tiebreakeriin, jotta tasavoittoiset maalivahdit järjestyvät NHL.com-listauksen mukaisesti (esim. Bussi 31W/39GP → #7 eikä #4)
   - Siivottu README vastaamaan nykyistä JSON-roster + validator -mallia: poistettu vanhat `workflow-kit`, `docs/skills`, Excel-upload ja vanhentuneet admin-endpoint -viittaukset
   - Täsmennetty period 3 runbookin gate-reason vastaamaan nykyistä backend-signaalia `period3_rosters_missing`
   - Selkeytetty nykyisen Stanley Cup -kilpailun näkyvää terminologiaa: `Ställningen` käyttää nyt käyttäjälle näkyvissä otsikoissa ja sarakkeissa `Stanley Cup` / `SC` -sanastoa vanhan `Period 3` / `P3` -sanaston sijaan
@@ -540,7 +541,7 @@ Hard fail -säännöt:
   - Bandisääntö (1-10, 11-20, 21-30, ...):
     - Jos et käytä ylempää bandia, voit ottaa vastaavasti enemmän seuraavasta bandista.
     - Tarkistus voidaan ilmaista kumulatiivisena ehtona: bandeista 1..m valittujen määrä <= m.
-- Maalivahtien rankingjakso tulee samasta kilpailukohtaisesta ranking-ikkunasta, ranking wins.
+- Maalivahtien rankingjakso tulee samasta kilpailukohtaisesta ranking-ikkunasta, ranking wins; tasatilanteessa tiebreakerina gamesPlayed DESC (enemmän pelejä → parempi sija), jotta ranking vastaa NHL.com-listauksen järjestystä.
 - Kahden maalivahdin rank-summan on oltava vähintään 30 (esim. #1 + #29 = 30 on sallittu).
 
 Kilpailukohtaiset ranking-ikkuna-asetukset:
