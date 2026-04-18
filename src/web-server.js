@@ -2728,7 +2728,7 @@ function buildCompareIndexes(compareItems) {
   const byLastAndInitial = new Map();
 
   for (const item of compareItems ?? []) {
-    if (item?.status !== "ok") {
+    if (item?.status === "fetch_error") {
       continue;
     }
 

@@ -481,7 +481,7 @@ Stanley Cupissa käytetään eri sijoituspisteitä kuin periodissa 1:
 
 2) Ställningen-näkymä
 - Periodi 1:n aikana näytetään vain kuluvan vaiheen taulukko otsikolla `Ställning Period 1` ilman total-yhteenvetoa.
-- Stanley Cup -vaiheessa näytetään `Ställning Stanley Cup` + `Totalställning inklusive Stanley Cup`.
+- Stanley Cup -vaiheessa otsikko pysyy `Ställning Period 1`. `Totalställning inklusive Stanley Cup` -osio piilotetaan kunnes period 2 on aktiivinen (`activePeriodNumber >= 2`).
 - Stanley Cup -vaiheen total-taulukossa sarakkeet näytetään muodossa `P1`, `P2`, `SC`, `Totalt`.
 
 3) Admin- ja operointipolku

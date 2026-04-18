@@ -206,7 +206,7 @@ function getActivePeriodNumber(compareDate, periodCalendar) {
 
 function shouldShowTotalStandings(compareDate, periodCalendar) {
   const activePeriodNumber = getActivePeriodNumber(compareDate, periodCalendar);
-  return activePeriodNumber >= 2 || isStanleyCupActive(compareDate);
+  return activePeriodNumber >= 2;
 }
 
 function updateTotalSectionVisibility(compareDate, periodCalendar) {
@@ -225,7 +225,7 @@ function updateSectionTitles(compareDate) {
   const stanleyCup = isStanleyCupActive(compareDate);
 
   if (periodTitleEl) {
-    periodTitleEl.textContent = stanleyCup ? "Ställning Stanley Cup" : "Ställning Period 1";
+    periodTitleEl.textContent = "Ställning Period 1";
   }
 
   if (totalTitleEl) {
