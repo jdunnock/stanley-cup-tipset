@@ -2698,8 +2698,8 @@ async function validateTeam({
 
   if (goalieRanks.length === 2) {
     const goalieRankSum = goalieRanks[0] + goalieRanks[1];
-    if (goalieRankSum < 30) {
-      errors.push(`Maalivahtien rank-summa liian pieni: ${goalieRankSum} (min 30)`);
+    if (goalieRankSum < 29) {
+      errors.push(`Maalivahtien rank-summa liian pieni: ${goalieRankSum} (min 29)`);
     }
   } else if (selectedGoalies.length === 2) {
     warnings.push("Maalivahtien rank-summaa ei voitu varmistaa täysin, koska rankingosuma puuttuu");
