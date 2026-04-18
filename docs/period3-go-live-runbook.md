@@ -1,63 +1,63 @@
-# Period 3 go-live runbook
+# Stanley Cup go-live runbook
 
-Tämä checklist on periodi 2 -> periodi 3 vaihtoon.
+Tämä checklist on periodi 1 -> Stanley Cup -vaihtoon.
 
-Lisäkonteksti ja päätösloki: [docs/specification.md](docs/specification.md) (kohta 11: period 3 -siirtymä).
+Lisäkonteksti ja päätösloki: [docs/specification.md](docs/specification.md) (kohta 11: Stanley Cup -siirtymä).
 
 ## 1) Aikaraja (source of truth)
 
-- Period 2 päättyy: `2026-03-15 klo 10:00` (SE) / `11:00` (FI)
-- `2026-03-14` illan NHL-pelit kuuluvat vielä periodiin 2
-- Period 3 alkaa `2026-03-15` illan peleistä
+- Period 1 päättyy: `2026-03-15 klo 10:00` (SE) / `11:00` (FI)
+- `2026-03-14` illan NHL-pelit kuuluvat vielä periodiin 1
+- Stanley Cup alkaa `2026-03-15` illan peleistä
 
 ### Päiväkohtainen päätöstaulukko (cron 09:00 FI)
 
-| Aamun ajopäivä (FI) | Oletus targetDate (`eilinen`) | Tavoite | Vaaditaanko period 3 rosteri? |
+| Aamun ajopäivä (FI) | Oletus targetDate (`eilinen`) | Tavoite | Vaaditaanko Stanley Cup -rosteri? |
 | --- | --- | --- | --- |
-| 2026-03-15 | 2026-03-14 | Päivitä period 2 viimeinen pelipäivä | Ei |
-| 2026-03-16 | 2026-03-15 | Period 3 ensimmäinen pelipäivä | Kyllä |
-| 2026-03-17 -> | >= 2026-03-16 | Period 3 jatkuvat päivitykset | Kyllä |
+| 2026-03-15 | 2026-03-14 | Päivitä period 1 viimeinen pelipäivä | Ei |
+| 2026-03-16 | 2026-03-15 | Stanley Cupin ensimmäinen pelipäivä | Kyllä |
+| 2026-03-17 -> | >= 2026-03-16 | Stanley Cupin jatkuvat päivitykset | Kyllä |
 
 Tulkinta:
-- `2026-03-15` aamun automaattiajo on sallittu ilman period 3 rosteria.
-- `2026-03-16` aamusta eteenpäin automaattiajo blokataan ilman period 3 rosteria.
+- `2026-03-15` aamun automaattiajo on sallittu ilman Stanley Cup -rosteria.
+- `2026-03-16` aamusta eteenpäin automaattiajo blokataan ilman Stanley Cup -rosteria.
 
-## 2) Ennen vaihtoa (viimeistään 15.3 ennen ekaa period 3 peliä)
+## 2) Ennen vaihtoa (viimeistään 15.3 ennen ensimmäistä Stanley Cup -peliä)
 
 - [ ] Stanley Cup validator toimii (`/team-validator.html`)
-- [ ] Kaikkien osallistujien period 3 joukkueet on syötetty validatorin kautta
+- [ ] Kaikkien osallistujien Stanley Cup -joukkueet on syötetty validatorin kautta
 - [ ] `data/period3-rosters.json` sisältää kaikkien osallistujien pelaajat
 - [ ] Varmista että admin-kirjautuminen toimii (`/admin.html`)
 
 ## 3) Vaihtohetki (operointi)
 
-- [ ] Syötä tai tarkista puuttuvat period 3 joukkueet validatorissa
+- [ ] Syötä tai tarkista puuttuvat Stanley Cup -joukkueet validatorissa
 - [ ] Varmista että `period3-rosters.json.enabled === true`
-- [ ] Aja force-refresh, jotta data lämpenee uudelle periodille
+- [ ] Aja force-refresh, jotta data lämpenee uudelle vaiheelle
 - [ ] Varmista että `Ställningen` ja `Lagen` latautuvat ilman virheitä
 
 ### Aamun operointichecklist (15.3 -> 16.3)
 
-15.3 aamulla (period 2 finalisointi):
+15.3 aamulla (period 1 finalisointi):
 - [ ] Kutsu `GET /api/cron/daily-refresh` ilman `force=true`
-- [ ] Varmista että vastaus EI ole `period3_rosters_missing`
-- [ ] Varmista että `date` on `2026-03-14` (tai vastaava period 2 viimeinen targetDate)
+- [ ] Varmista että vastaus EI ole legacy-gate `period3_rosters_missing`
+- [ ] Varmista että `date` on `2026-03-14` (tai vastaava period 1 viimeinen targetDate)
 
-16.3 aamulla (period 3 gate aktiivinen):
-- [ ] Jos period 3 rosteri puuttuu, varmista että ajo ei käynnisty normaalipolkua pitkin
+16.3 aamulla (Stanley Cup gate aktiivinen):
+- [ ] Jos Stanley Cup -rosteri puuttuu, varmista että ajo ei käynnisty normaalipolkua pitkin
 - [ ] Tallenna puuttuvat joukkueet validatorilla ja aja `GET /api/cron/daily-refresh?force=true`
 - [ ] Varmista onnistumisen jälkeen `autoRefreshLastSuccessDate` asetuksista/API-vastauksesta
 
-## 4) Period 3 pisteasteikko
+## 4) Stanley Cup pisteasteikko
 
-Period 3 sijoituspisteet:
+Stanley Cup -sijoituspisteet:
 
 - `30, 24, 19, 15, 12, 10, 8, 6, 4, 2, 1`
 
 Huomio:
 
-- Tämä poikkeaa periodi 1-2 asteikosta (`20, 16, 13, 11, 9, 7, 5, 4, 3, 2, 1`)
-- Tasapisteissä käytetään keskiarvoa ja pyöristystä lähimpään kokonaislukuun (sama periaate kuin period 2:ssa)
+- Tämä poikkeaa periodi 1 asteikosta (`20, 16, 13, 11, 9, 7, 5, 4, 3, 2, 1`)
+- Tasapisteissä käytetään keskiarvoa ja pyöristystä lähimpään kokonaislukuun (sama periaate kuin aiemmassa vaiheessa)
 
 ## 5) Julkaisun jälkeinen tarkistus (smoke)
 
@@ -69,7 +69,7 @@ Huomio:
 
 ## 6) Rollback-suunnitelma
 
-Jos period 3 data on virheellinen:
+Jos Stanley Cup -data on virheellinen:
 
 1. Palauta edellinen toimiva `period3-rosters.json`
 2. Aja force-refresh uudelleen
@@ -80,6 +80,6 @@ Jos period 3 data on virheellinen:
 
 Kun vaihto on tehty:
 
-- [ ] Lähetä lyhyt ilmoitus: period 3 käynnissä
-- [ ] Kerro että pisteasteikko period 3:ssa on päivitetty
+- [ ] Lähetä lyhyt ilmoitus: Stanley Cup käynnissä
+- [ ] Kerro että pisteasteikko Stanley Cupissa on päivitetty
 - [ ] Jaa suora linkki `Ställningen`-sivulle

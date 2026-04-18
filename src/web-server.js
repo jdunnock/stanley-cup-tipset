@@ -2562,10 +2562,7 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
 
   const goalieRows = await fetchStatsSummaryAll({
     entity: "goalie",
-    sortExpr: [
-      { property: "wins", direction: "DESC" },
-      { property: "gamesPlayed", direction: "DESC" },
-    ],
+    sortExpr: [{ property: "wins", direction: "DESC" }],
     cayenneExp,
   });
 
@@ -2593,10 +2590,9 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
         Number(row?.shutouts ?? 0) * 2,
       goals: 0,
       wins: Number(row?.wins ?? 0),
-      gamesPlayed: Number(row?.gamesPlayed ?? 0),
     }))
     .filter((row) => row.fullName && row.teamAbbrev)
-    .sort((left, right) => right.wins - left.wins || right.gamesPlayed - left.gamesPlayed || left.fullName.localeCompare(right.fullName));
+    .sort((left, right) => right.wins - left.wins || left.fullName.localeCompare(right.fullName));
 
   const skaterByFullKey = new Map();
   const skaterByLastKey = new Map();
@@ -2725,7 +2721,7 @@ async function validateTeam({
     // This means Period 1 validation with clean slate - no ownership checks
     ownership = null;
   } else {
-    // Period 2 Excel removed — no ownership check
+    // No previous-phase ownership source was provided for this validation path.
     ownership = null;
   }
 
@@ -2741,7 +2737,7 @@ async function validateTeam({
           .sort((left, right) => left.localeCompare(right))
           .join(", ");
         errors.push(
-          `Vaihtosääntö rikki: period 3 joukkueessa pitää vaihtaa vähintään 2 pelaajaa period 2:een verrattuna (nyt vaihdettu ${changedCount}). Samana pysyneet: ${unchangedList}`
+          `Vaihtosääntö rikki: Stanley Cup -joukkueessa pitää vaihtaa vähintään 2 pelaajaa aiempaan rosteriin verrattuna (nyt vaihdettu ${changedCount}). Samana pysyneet: ${unchangedList}`
         );
       }
     }
@@ -2754,7 +2750,7 @@ async function validateTeam({
       if (!owners.has(participantName)) {
         const ownerNames = Array.from(owners.values()).sort((a, b) => a.localeCompare(b));
         errors.push(
-          `Omistussääntö rikki: ${player.playerName} (${player.teamAbbrev}) oli period 2:ssa osallistujalla ${ownerNames.join(", ")}, ei ${participantName}`
+          `Omistussääntö rikki: ${player.playerName} (${player.teamAbbrev}) oli aiemmassa rosterissa osallistujalla ${ownerNames.join(", ")}, ei ${participantName}`
         );
       }
     }
@@ -4286,7 +4282,7 @@ app.post("/api/team-validator", teamValidatorRateLimiter, async (req, res) => {
       previousRosterFile: previousRosterFileProvided ? previousRosterFile : undefined,
     });
 
-    // If validation passes, save to Period 1 rosters
+    // If validation passes, save to the current temporary roster store.
     let savedToPeriod1 = false;
     if (result?.status === "PASS") {
       const parsed = parsePeriod3RosterText(rosterText);

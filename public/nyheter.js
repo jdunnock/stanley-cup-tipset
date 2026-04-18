@@ -1,12 +1,12 @@
 const DEFAULT_SEASON_ID = "20252026";
-const PERIOD3_START_DATE = "2026-03-15";
+const STANLEY_CUP_START_DATE = "2026-03-15";
 
 const NYHETER_MODE_PERIOD = "period";
 const NYHETER_MODE_WEEKLY = "weekly";
 
 const fallbackNyheterData = {
   mode: NYHETER_MODE_PERIOD,
-  isPeriodThreeActive: false,
+  isStanleyCupActive: false,
   weekStart: "2026-03-09",
   weekEnd: "2026-03-14",
   leaderName: "Timmy",
@@ -282,13 +282,13 @@ function buildNyheterDataFromSnapshots(snapshots, options = {}) {
     const topContributorName = ownImpact
       ? cleanPlayerName(ownImpact.topContributor)
       : topContributorFallback
-      ? cleanPlayerName(topContributorFallback.playerLabel)
-      : "Inget anmärkningsvärt draglok";
+        ? cleanPlayerName(topContributorFallback.playerLabel)
+        : "Inget anmärkningsvärt draglok";
     const biggestDragName = ownImpact
       ? cleanPlayerName(ownImpact.biggestDrag)
       : biggestDragFallback
-      ? cleanPlayerName(biggestDragFallback.playerLabel)
-      : "Ingen anmärkningsvärd broms";
+        ? cleanPlayerName(biggestDragFallback.playerLabel)
+        : "Ingen anmärkningsvärd broms";
 
     return {
       participantName: entry.name,
@@ -299,31 +299,31 @@ function buildNyheterDataFromSnapshots(snapshots, options = {}) {
           ? "-"
           : formatDelta(ownImpact.topContributorDelta)
         : topContributorFallback
-        ? formatDelta(topContributorFallback.deltaPoints)
-        : "-",
+          ? formatDelta(topContributorFallback.deltaPoints)
+          : "-",
       biggestDrag: biggestDragName,
       biggestDragDelta: ownImpact
         ? ownImpact.biggestDragDelta === "-"
           ? "-"
           : formatDelta(ownImpact.biggestDragDelta)
         : biggestDragFallback
-        ? formatDelta(biggestDragFallback.deltaPoints)
-        : "-",
+          ? formatDelta(biggestDragFallback.deltaPoints)
+          : "-",
     };
   });
 
   const latestSnapshotDate = String(latestSnapshot?.snapshotDate || "");
   const compareDate = String(options.compareDate || "").trim();
   const contextDate = compareDate || latestSnapshotDate;
-  const isPeriodThreeActive = Boolean(contextDate && contextDate >= PERIOD3_START_DATE);
+  const isStanleyCupActive = Boolean(contextDate && contextDate >= STANLEY_CUP_START_DATE);
   const weeklyBaseline = latestSnapshotDate ? selectWeeklyBaselineSnapshot(snapshots, latestSnapshotDate) : null;
   const weeklyContext = weeklyBaseline ? buildWeeklyDeltaContext(latestSnapshot, weeklyBaseline) : null;
   const weeklyModeAvailable = Boolean(
     weeklyContext &&
-      Array.isArray(payload.playerTotals) &&
-      Array.isArray(weeklyBaseline?.payload?.playerTotals)
+    Array.isArray(payload.playerTotals) &&
+    Array.isArray(weeklyBaseline?.payload?.playerTotals)
   );
-  const weeklyMode = weeklyModeAvailable && !isPeriodThreeActive;
+  const weeklyMode = weeklyModeAvailable && !isStanleyCupActive;
 
   const injuryUpdates = injuries.slice(0, 8).map((entry) => ({
     label: cleanPlayerName(entry.playerLabel),
@@ -350,22 +350,22 @@ function buildNyheterDataFromSnapshots(snapshots, options = {}) {
     : buildUniqueSlowestClimbers(slowest, 3);
   const modeParticipantImpacts = weeklyMode ? weeklyContext.weeklyParticipantImpacts : participantImpactsPeriod;
   const modeBottomSub = weeklyMode
-    ? isPeriodThreeActive
+    ? isStanleyCupActive
       ? "Veckoläget: bottenstriden lever i Stanley Cup"
       : "Veckoläget: bottenstriden lever inför Stanley Cup-starten"
     : "Bottenstriden lever in i sista omgången av period 2";
   const modeLeadSummary = weeklyMode
     ? `${leader.name} toppar fortfarande totalen, men veckans svängningar var tydliga bakom ledaren. ` +
-      "Det här utskicket bygger på förändringen mellan två snapshots under veckan."
-    : isPeriodThreeActive
+    "Det här utskicket bygger på förändringen mellan två snapshots under veckan."
+    : isStanleyCupActive
       ? `${leader.name} leder fortsatt tabellen, men jakten är intensiv bakom med små marginaler mellan plats 2-4. ` +
-            "Senaste snapshoten visar att toppspelarna driver stora svängningar och att skadeläget fortfarande kan avgöra fortsättningen i Stanley Cup."
+      "Senaste snapshoten visar att toppspelarna driver stora svängningar och att skadeläget fortfarande kan avgöra fortsättningen i Stanley Cup."
       : `${leader.name} leder fortsatt tabellen, men jakten är intensiv bakom med små marginaler mellan plats 2-4. ` +
-            "Senaste snapshoten visar att toppspelarna driver stora svängningar och att skadeläget fortfarande kan avgöra slutspurten. I morgon startar Stanley Cup.";
+      "Senaste snapshoten visar att toppspelarna driver stora svängningar och att skadeläget fortfarande kan avgöra slutspurten. I morgon startar Stanley Cup.";
 
   return {
     mode: weeklyMode ? NYHETER_MODE_WEEKLY : NYHETER_MODE_PERIOD,
-    isPeriodThreeActive,
+    isStanleyCupActive,
     weekEnd: modeWeekEnd,
     weekStart: modeWeekStart,
     leaderName: String(leader.name || ""),
@@ -583,26 +583,26 @@ function renderModeLabels() {
   const fallersTitle = document.getElementById("fallersTitle");
   const impactDeltaHeader = document.getElementById("impactDeltaHeader");
   const isWeekly = nyheterData.mode === NYHETER_MODE_WEEKLY;
-  const isPeriodThree = Boolean(nyheterData.isPeriodThreeActive);
+  const isStanleyCup = Boolean(nyheterData.isStanleyCupActive);
 
   if (risersTitle) {
     risersTitle.textContent = isWeekly
       ? "🚀 Veckans raketer"
-      : isPeriodThree
-                ? "🚀 Raketer (Stanley Cup totalt)"
+      : isStanleyCup
+        ? "🚀 Raketer (Stanley Cup totalt)"
         : "🚀 Raketer (period 2 totalt)";
   }
 
   if (fallersTitle) {
     fallersTitle.textContent = isWeekly
       ? "🐢 Veckans långsammaste klättrare"
-      : isPeriodThree
-                ? "🐢 Långsammaste klättrare (Stanley Cup totalt)"
+      : isStanleyCup
+        ? "🐢 Långsammaste klättrare (Stanley Cup totalt)"
         : "🐢 Långsammaste klättrare (period 2 totalt)";
   }
 
   if (impactDeltaHeader) {
-    impactDeltaHeader.textContent = isWeekly ? "Vecka" : isPeriodThree ? "Totalt (Stanley Cup)" : "Totalt (period 2)";
+    impactDeltaHeader.textContent = isWeekly ? "Vecka" : isStanleyCup ? "Totalt (Stanley Cup)" : "Totalt (period 2)";
   }
 }
 

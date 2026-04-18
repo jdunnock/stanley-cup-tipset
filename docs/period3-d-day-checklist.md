@@ -1,16 +1,16 @@
-# Period 3 D-day checklist (10 min)
+# Stanley Cup D-day checklist (10 min)
 
-Tämä on nopea tuotantopäivän tarkistuslista periodi 3 -vaihtoon.
+Tämä on nopea tuotantopäivän tarkistuslista Stanley Cup -vaihtoon.
 
 ## 0) Tavoite
 
-Vaihto periodiin 3 onnistuu ilman katkosta ennen ensimmäistä period 3 iltapeliä.
+Vaihto Stanley Cupiin onnistuu ilman katkosta ennen ensimmäistä Stanley Cup -iltapeliä.
 
 ## 1) Ennen vaihtoa (2 min)
 
 - [ ] Admin-kirjautuminen toimii: `/admin.html`
-- [ ] Period 3 rosterit on syötetty validatorissa
-- [ ] Varmista aikaraja: period 2 loppu `15.3 klo 10:00 SE / 11:00 FI`
+- [ ] Stanley Cup -rosterit on syötetty validatorissa
+- [ ] Varmista aikaraja: period 1 loppu `15.3 klo 10:00 SE / 11:00 FI`
 
 ## 2) Vaihto (3 min)
 
@@ -29,7 +29,7 @@ Vaihto periodiin 3 onnistuu ilman katkosta ennen ensimmäistä period 3 iltapeli
 ## 4) Hyväksyntä ja viestintä (2 min)
 
 - [ ] Tarkista nopeasti että järjestys näyttää järkevältä
-- [ ] Lähetä osallistujille ilmoitus: period 3 käynnissä
+- [ ] Lähetä osallistujille ilmoitus: Stanley Cup käynnissä
 - [ ] Jaa suora linkki `Ställningen`-sivulle
 
 ## Fallback (jos jokin menee pieleen)

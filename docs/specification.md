@@ -16,7 +16,7 @@ Päätulokset:
 ## 2. Nykyinen arkkitehtuuri
 
 - Backend: Node.js + Express
-- Rosteridata: JSON-tiedostot (`period1-rosters.json`, `period3-rosters.json`)
+- Rosteridata: JSON-tiedostot (`period1-rosters.json`, `period3-rosters.json`; jälkimmäinen on legacy-tiedostonimi Stanley Cup -vaiheelle)
 - Persistenssi: SQLite (app-settings + response cache) + rosteri-JSONit
 - UI: staattiset sivut public-kansiossa
 - Deploy: Railway
@@ -98,14 +98,14 @@ Hyväksymiskriteerit:
   - Mattias 20, Fredrik 16, Joakim 13, Jarmo 11, Timmy 9, Kjell 7, Henrik 5
 - Period 2 -sijoituspisteasteikko (käytetään period 2 totaliin):
   - 20, 16, 13, 11, 9, 7, 5, 4, 3, 2, 1
-- Period 3 -sijoituspisteasteikko (käytetään period 3 totaliin):
+- Stanley Cup -sijoituspisteasteikko (käytetään Stanley Cup -totaliin; teknisesti sama asteikko kuin vanhan 3-periodisen mallin period 3:ssa):
   - 30, 24, 19, 15, 12, 10, 8, 6, 4, 2, 1
 - Tasapisteissä jaetaan sijoitusten pisteiden keskiarvo tasan kaikille tasapisteisille
-  - Esim. sijat 1-2 tasan: `(30 + 24) / 2 = 27` period 3:ssa
+  - Esim. sijat 1-2 tasan: `(30 + 24) / 2 = 27` Stanley Cupissa
   - Esim. sijat 1-3 tasan: `(30 + 24 + 19) / 3`, pyöristys lähimpään kokonaislukuun
-- Period 3:ssa period 2 pisteet lukitaan period 2 lopputuloksen mukaisiksi:
+- Stanley Cup -vaiheessa period 2 pisteet lukitaan period 2 lopputuloksen mukaisiksi:
   - Timmy 20, Fredrik 16, Joakim 13, Mattias 11, Kjell 9, Jarmo 7, Henrik 5
-- Period 3 -näkymässä otsikot ovat:
+- Stanley Cup -näkymässä otsikot ovat:
   - `Ställning Period 1`
   - `Ställning Stanley Cup`
   - `Totalställning inklusive Stanley Cup`
@@ -124,9 +124,9 @@ Hyväksymiskriteerit:
 - Nyheter käyttää viikkotilastotilaa aina kun endpointista löytyy vähintään kaksi snapshotia noin viikon välein (latest + baseline noin 7 päivää aiemmin)
 - Viikkotilassa `Raketer`, `Långsammaste klättrare` ja `Påverkan per deltagare` lasketaan snapshot-deltana (`latest - baseline`), ja otsikot vaihtuvat viikkokontekstiin
 - Ennen kuin viikkobaseline on saatavilla, sivu pysyy perioditilassa (selkeästi merkittynä), jotta lukijalle ei synny väärää viikkotulkintaa
-- Nyheter-snapshot-keräys on pausella kunnes period 3 -JSON-rosteri on saatavilla (`period3-rosters.json`), jonka jälkeen keräys jatkuu normaalisti
+- Nyheter-snapshot-keräys on pausella kunnes Stanley Cup -JSON-rosteri on saatavilla (`period3-rosters.json`, legacy-tiedostonimi), jonka jälkeen keräys jatkuu normaalisti
 - Osiota `Redaktionens blinkning` ei näytetä tällä julkaisukierroksella
-- Nyheter-avauksessa mainitaan period 3:n käynnistyminen (julkaisukierros 14.3.2026: "I morgon startar period 3")
+- Nyheter-avauksessa mainitaan Stanley Cupin käynnistyminen (julkaisukierros 14.3.2026: "I morgon startar Stanley Cup")
 - Osio `Inför nästa vecka` poistetaan Nyheter-näkymästä, koska se ei tuo lisäarvoa suhteessa muihin osioihin
 - Osio `Påverkan per deltagare` muodostetaan snapshotissa jokaisen osallistujan omista pelaajista (paras nousija + suurin jarru), jotta jokaiselle osallistujalle saadaan osallistujakohtainen sisältö eikä pelkkä globaali top-listan osuma
 - `Påverkan per deltagare`-taulukon toinen sarake kuvaa periodin kokonaiskertymää (`Totalt (period 2)`), ei viikon pistemuutosta
@@ -288,7 +288,11 @@ Kun käytät PR:ää, käytä tätä:
 ## 7. Muutosloki
 
 - 2026-04-18
-  - Korjattu maalivahtien ranking-tiebreaker: vaihdettu aakkosjärjestyksestä `gamesPlayed DESC` -tiebreakeriin, jotta tasavoittoiset maalivahdit järjestyvät NHL.com-listauksen mukaisesti (esim. Bussi 31W/39GP → #7 eikä #4)
+  - Siivottu working tree palauttamalla tahaton drift pois tiedostoista `data/period1-rosters.json`, `public/index.html`, `public/lagen.html`, `public/nyheter.html`, `public/period3-validator.html` ja `public/stallning.html`; tämä oli puhdistus takaisin commitattuun tilaan eikä muuttanut tuotantokäyttäytymistä
+  - Rajattu Excel/period 3 -siivous aktiiviseen käyttöpolkuun: käyttäjälle näkyvä sanasto ja operointidokumentaatio käyttävät nyt `Stanley Cup`-termiä, mutta tekniset legacy-avaimet kuten `period3-rosters.json` ja `period3_rosters_missing` säilyvät ennallaan, jotta rosteridata, asetukset ja automaatiot eivät rikkoudu
+  - Siivottu README:n vanhat Excel-ohjeet ja poistuneet admin-endpoint-viittaukset; dokumentaatio vastaa nyt nykyistä JSON-roster + validator -mallia ilman Excel-polkuja
+  - Päivitetty Stanley Cup -operointidokumentit (`period3-go-live-runbook.md`, `period3-d-day-checklist.md`) nykyiseen sanastoon ja korjattu readiness-gaten legacy-syykoodi vastaamaan backendin todellista arvoa `period3_rosters_missing`
+  - Selkeytetty validatorin näkyvät virhetekstit ja `Nyheter`-sivun sisäinen terminologia Stanley Cup -vaiheeseen ilman muutoksia tietokannan tai rosteri-JSONien teknisiin avaimiin
   - Siivottu README vastaamaan nykyistä JSON-roster + validator -mallia: poistettu vanhat `workflow-kit`, `docs/skills`, Excel-upload ja vanhentuneet admin-endpoint -viittaukset
   - Täsmennetty period 3 runbookin gate-reason vastaamaan nykyistä backend-signaalia `period3_rosters_missing`
   - Selkeytetty nykyisen Stanley Cup -kilpailun näkyvää terminologiaa: `Ställningen` käyttää nyt käyttäjälle näkyvissä otsikoissa ja sarakkeissa `Stanley Cup` / `SC` -sanastoa vanhan `Period 3` / `P3` -sanaston sijaan
@@ -432,31 +436,32 @@ Käyttöperiaate:
 - ylläpidä reusable promptit, skillit ja specification-template keskitetysti template-repossa
 - tuo uuteen projektiin vain tarvittavat tiedostot template-reposta bootstrap-vaiheessa
 
-## 11. Period 3 -siirtymä (toteutettu malli + operointi)
+## 11. Stanley Cup -siirtymä (toteutettu malli + operointi)
 
-### 11.1 Aikataulu ja periodirajat
+### 11.1 Aikataulu ja vaiheiden rajat
 
-- Period 2 päättyy `2026-03-15 klo 10:00` Ruotsin aikaa (`11:00` Suomen aikaa).
-- Käytännön sääntö: NHL-pelit, jotka pelataan illalla `2026-03-14`, kuuluvat vielä periodiin 2.
-- Period 3 alkaa `2026-03-15` illan otteluilla.
+- Period 1 päättyy `2026-03-15 klo 10:00` Ruotsin aikaa (`11:00` Suomen aikaa).
+- Käytännön sääntö: NHL-pelit, jotka pelataan illalla `2026-03-14`, kuuluvat vielä periodiin 1.
+- Stanley Cup alkaa `2026-03-15` illan otteluilla.
 
-### 11.2 Period 3 pisteasteikko
+### 11.2 Stanley Cup pisteasteikko
 
-Period 3:ssa käytetään eri sijoituspisteitä kuin periodeissa 1-2:
+Stanley Cupissa käytetään eri sijoituspisteitä kuin periodissa 1:
 
 - `30, 24, 19, 15, 12, 10, 8, 6, 4, 2, 1`
 
-### 11.3 Datan hallinta periodille 3
+### 11.3 Stanley Cup -datan hallinta
 
-- Period 3 rosterit syötetään validatorin kautta ja tallennetaan `data/period3-rosters.json` tiedostoon.
+- Stanley Cup -rosterit syötetään validatorin kautta ja tallennetaan `data/period3-rosters.json` tiedostoon.
 - Excel ei ole osa aktiivista tuotantopolkua.
-- Nykyinen period 1+2 -kokonaisuus säilyy historiallisena vertailuna, ja period 2 pisteet lukitaan period 3:n total-laskennassa.
+- Tekninen legacy-nimi `period3-rosters.json` säilyy toistaiseksi, jotta nykyinen rosteriputki, cache-avaimet ja operointiskriptit eivät rikkoudu.
+- Nykyinen period 1+2 -kokonaisuus säilyy historiallisena vertailuna, ja period 2 pisteet lukitaan Stanley Cup -total-laskennassa.
 
 ### 11.4 Toteutettu sovellusmalli
 
 1) Periodikonfiguraatio
-- Period 3 raja on `2026-03-15` (otteluikkunan alku).
-- Period 3 total käyttää omaa pisteasteikkoa (`30,24,19,15,12,10,8,6,4,2,1`).
+- Stanley Cup -raja on `2026-03-15` (otteluikkunan alku).
+- Stanley Cup -total käyttää omaa pisteasteikkoa (`30,24,19,15,12,10,8,6,4,2,1`).
 - Nykyinen Stanley Cup -kilpailu käyttää tätä samaa pisteasteikkoa, mutta käyttäjälle näkyvä UI nimeää vaiheen `Stanley Cup` eikä `Period 3`.
 
 2) Ställningen-näkymä
@@ -470,19 +475,20 @@ Period 3:ssa käytetään eri sijoituspisteitä kuin periodeissa 1-2:
 - Uudet Stanley Cup -joukkueet luodaan validator-sivulla ja hyväksytyt rosterit tallennetaan JSON-muodossa mukaan veikkaukseen.
 
 4) Ajastus ja readiness
-- Päivittäinen auto refresh säilyy, mutta period 3 rajan jälkeen ajo estyy kunnes period 3 rosterilähde on käytettävissä (`period3-rosters.json`).
+- Päivittäinen auto refresh säilyy, mutta Stanley Cup -rajan jälkeen ajo estyy kunnes Stanley Cup -rosterilähde on käytettävissä (`period3-rosters.json`).
+- Readiness-signaalin legacy-syykoodi on edelleen `period3_rosters_missing`, eikä sitä muuteta tässä siivousvaiheessa API-yhteensopivuuden takia.
 - Periodirajan vaihto on erillinen operatiivinen toimenpide (ei pelkkä päivittäinen refresh).
 
 ### 11.5 Tehdyt päätökset
 
 - Periodivaihto tehdään manuaalisena admin-toimena `compareDate` kentän kautta.
 - UI näyttää aktiivisen vaiheen otsikkotasolla (`Period 2` vs `Stanley Cup`).
-- Period 1+2 lukitaan period 3 total-laskennassa käyttämällä period 2 lopputuloksen pistejakaumaa.
+- Period 1+2 lukitaan Stanley Cup -total-laskennassa käyttämällä period 2 lopputuloksen pistejakaumaa.
 
-### 11.10 Backoffice: Period 3 joukkuevalidatori
+### 11.10 Backoffice: Stanley Cup -joukkuevalidatori
 
 Tavoite:
-- Tarjota backoffice-käyttöön erillinen tarkistustyökalu, jolla validoidaan yhden osallistujan period 3 -joukkue kerrallaan ennen lukitusta.
+- Tarjota backoffice-käyttöön erillinen tarkistustyökalu, jolla validoidaan yhden osallistujan Stanley Cup -joukkue kerrallaan ennen lukitusta.
 - Ei osa julkista tuotantokäyttöliittymää.
 
 Toteutus:
@@ -532,16 +538,16 @@ Normalisointi:
 
 Hard fail -säännöt:
 - Roolijakauma on täsmälleen: 2 maalivahtia, 4 puolustajaa, 6 hyökkääjää.
-- Osallistujan period 3 -joukkueessa pitää vaihtua vähintään 2 pelaajaa verrattuna saman osallistujan period 2 -joukkueeseen.
+- Osallistujan Stanley Cup -joukkueessa pitää vaihtua vähintään 2 pelaajaa verrattuna saman osallistujan aiemman vaiheen joukkueeseen.
 - Maksimissaan 2 pelaajaa samasta nykyisestä NHL-joukkueesta kaikkien 12 pelaajan yli.
-- Et voi valita pelaajaa, joka oli period 2:ssa jollakin toisella osallistujalla, ellei pelaaja ollut myös sinulla period 2:ssa.
+- Et voi valita pelaajaa, joka oli aiemmassa vaiheessa jollakin toisella osallistujalla, ellei pelaaja ollut myös sinulla aiemmassa vaiheessa.
 - Ukkopelaajien sijaan sääntö koskee ulkopelaajia (puolustajat + hyökkääjät):
   - Rankingjakso tulee kilpailukohtaisesta asetuksesta (`rankingFrom` - `rankingTo`), jota hallitaan Adminissa ja tallennetaan SQLite-asetuksiin.
   - Rankingjärjestys: pisteet, tasatilanteessa tehdyt maalit.
   - Bandisääntö (1-10, 11-20, 21-30, ...):
     - Jos et käytä ylempää bandia, voit ottaa vastaavasti enemmän seuraavasta bandista.
     - Tarkistus voidaan ilmaista kumulatiivisena ehtona: bandeista 1..m valittujen määrä <= m.
-- Maalivahtien rankingjakso tulee samasta kilpailukohtaisesta ranking-ikkunasta, ranking wins; tasatilanteessa tiebreakerina gamesPlayed DESC (enemmän pelejä → parempi sija), jotta ranking vastaa NHL.com-listauksen järjestystä.
+- Maalivahtien rankingjakso tulee samasta kilpailukohtaisesta ranking-ikkunasta, ranking wins.
 - Kahden maalivahdin rank-summan on oltava vähintään 30 (esim. #1 + #29 = 30 on sallittu).
 
 Kilpailukohtaiset ranking-ikkuna-asetukset:
