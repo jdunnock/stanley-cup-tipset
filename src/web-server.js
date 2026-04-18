@@ -3737,38 +3737,7 @@ app.get("/api/version", (_req, res) => {
       deploymentId: process.env.RAILWAY_DEPLOYMENT_ID || "",
       environmentName: process.env.RAILWAY_ENVIRONMENT || "",
     },
-    paths: {
-      rootDir,
-      storageRoot,
-      dataDir,
-      volumeMountPath: process.env.RAILWAY_VOLUME_MOUNT_PATH || "",
-    },
   });
-});
-
-app.get("/api/debug-roster", async (_req, res) => {
-  const results = {};
-  const candidatePaths = [
-    path.join(dataDir, SC_ROSTERS_FILE),
-    path.join(rootDir, "data", SC_ROSTERS_FILE),
-  ];
-  for (const p of candidatePaths) {
-    try {
-      const stat = await fs.stat(p);
-      const content = await fs.readFile(p, "utf8");
-      const parsed = JSON.parse(content);
-      results[p] = { exists: true, size: stat.size, enabled: parsed?.enabled, participants: parsed?.participants?.length ?? 0 };
-    } catch (err) {
-      results[p] = { exists: false, error: err.message };
-    }
-  }
-  try {
-    const dirContents = await fs.readdir(path.join(rootDir, "data"));
-    results.dataDirContents = dirContents;
-  } catch (err) {
-    results.dataDirContents = err.message;
-  }
-  res.json(results);
 });
 
 app.get("/api/data-readiness", async (req, res) => {
