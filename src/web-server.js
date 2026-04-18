@@ -2425,7 +2425,10 @@ async function buildScRankingData({ fileName, seasonId, fromDate, toDate, gameTy
 
   const goalieRows = await fetchStatsSummaryAll({
     entity: "goalie",
-    sortExpr: [{ property: "wins", direction: "DESC" }],
+    sortExpr: [
+      { property: "wins", direction: "DESC" },
+      { property: "gamesPlayed", direction: "DESC" },
+    ],
     cayenneExp,
   });
 
@@ -2453,9 +2456,10 @@ async function buildScRankingData({ fileName, seasonId, fromDate, toDate, gameTy
         Number(row?.shutouts ?? 0) * 2,
       goals: 0,
       wins: Number(row?.wins ?? 0),
+      gamesPlayed: Number(row?.gamesPlayed ?? 0),
     }))
     .filter((row) => row.fullName && row.teamAbbrev)
-    .sort((left, right) => right.wins - left.wins || left.fullName.localeCompare(right.fullName));
+    .sort((left, right) => right.wins - left.wins || right.gamesPlayed - left.gamesPlayed || left.fullName.localeCompare(right.fullName));
 
   const skaterByFullKey = new Map();
   const skaterByLastKey = new Map();
