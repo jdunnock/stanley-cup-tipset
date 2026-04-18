@@ -21,6 +21,132 @@
         "Adrian Kempe (LAK)",
         "Andrei Svechnikov (CAR)"
       ]
+    },
+    {
+      "name": "Kjell",
+      "goalies": [
+        "Bussi (CAR)",
+        "Luukkonen (BUF)"
+      ],
+      "defenders": [
+        "Bouchard (EDM)",
+        "Dahlin (BUF)",
+        "Raddysh (TBL)",
+        "Gostisbehere (CAR)"
+      ],
+      "forwards": [
+        "McDavid (EDM)",
+        "Hagel (TBL)",
+        "Stone (VGK)",
+        "Nelson (COL)",
+        "Nichushkin (COL)",
+        "Duchene (DAL)"
+      ]
+    },
+    {
+      "name": "Fredrik",
+      "goalies": [
+        "Vasilevskiy (TBL)",
+        "Wallstedt (MIN)"
+      ],
+      "defenders": [
+        "Bouchard (EDM)",
+        "Dahlin (BUF)",
+        "Gostisbehere (CAR)",
+        "Heiskanen (DAL)"
+      ],
+      "forwards": [
+        "Necas (COL)",
+        "Aho (CAR)",
+        "Hagel (TBL)",
+        "Nelson (COL)",
+        "Tkachuk (OTT)",
+        "Hyman (EDM)"
+      ]
+    },
+    {
+      "name": "Joakim",
+      "goalies": [
+        "Vasilevskiy (TBL)",
+        "Ingram (EDM)"
+      ],
+      "defenders": [
+        "Hughes (MIN)",
+        "Karlsson (PIT)",
+        "McAvoy (BOS)",
+        "Gostisbehere (CAR)"
+      ],
+      "forwards": [
+        "Draisaitl (EDM)",
+        "Eichel (VGK)",
+        "Aho (CAR)",
+        "Stone (VGK)",
+        "Malkin (PIT)",
+        "Duchene (DAL)"
+      ]
+    },
+    {
+      "name": "Mattias",
+      "goalies": [
+        "Bussi (CAR)",
+        "Ingram (EDM)"
+      ],
+      "defenders": [
+        "Bouchard (EDM)",
+        "Raddysh (TBL)",
+        "Karlsson (PIT)",
+        "Gostisbehere (CAR)"
+      ],
+      "forwards": [
+        "Pastrnak (BOS)",
+        "Rantanen (DAL)",
+        "Hagel (TBL)",
+        "Stone (VGK)",
+        "Malkin (PIT)",
+        "Hintz (DAL)"
+      ]
+    },
+    {
+      "name": "Timmy",
+      "goalies": [
+        "Andersen (CAR)",
+        "Wedgewood (COL)"
+      ],
+      "defenders": [
+        "Bouchard (EDM)",
+        "C Makar (COL)",
+        "Q Hughes (MIN)",
+        "E Karlsson (PIT)"
+      ],
+      "forwards": [
+        "Eichel (VGK)",
+        "M Stone (VGK)",
+        "Svechnikov (CAR)",
+        "Malkin (PIT)",
+        "Nugent-Hopkins (EDM)",
+        "Duchene (DAL)"
+      ]
+    },
+    {
+      "name": "Henrik",
+      "goalies": [
+        "Bussi (CAR)",
+        "Skinner (PIT)"
+      ],
+      "defenders": [
+        "Bouchard (EDM)",
+        "Raddysh (TBL)",
+        "Q Hughes (MIN)",
+        "McAvoy (BOS)"
+      ],
+      "forwards": [
+        "Aho (CAR)",
+        "MacKinnon (COL)",
+        "Stone (VGK)",
+        "Malkin (PIT)",
+        "Hyman (EDM)",
+        "Kadri (COL)"
+      ]
     }
   ]
 }
