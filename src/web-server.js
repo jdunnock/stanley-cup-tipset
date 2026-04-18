@@ -10,7 +10,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const PORT = Number.parseInt(process.env.PORT ?? "3000", 10);
-const DEFAULT_COMPARE_DATE = "2026-01-24";
+const DEFAULT_COMPARE_DATE = "2026-04-19";
 const TIPSEN_PLAYER_ROWS = [6, 7, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21];
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
