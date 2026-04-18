@@ -2,7 +2,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, statSync, copyFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
@@ -122,7 +122,25 @@ function resolveCommitSha() {
 const commitSha = resolveCommitSha();
 
 mkdirSync(storageRoot, { recursive: true });
+mkdirSync(dataDir, { recursive: true });
 mkdirSync(path.dirname(settingsDbPath), { recursive: true });
+
+// Seed roster file from git source into volume if missing
+{
+  const volumeRosterPath = path.join(dataDir, SC_ROSTERS_FILE);
+  const gitRosterPath = path.join(rootDir, "data", SC_ROSTERS_FILE);
+  if (dataDir !== path.join(rootDir, "data")) {
+    let exists = false;
+    try { statSync(volumeRosterPath); exists = true; } catch { /* missing */ }
+    if (!exists) {
+      try {
+        statSync(gitRosterPath);
+        copyFileSync(gitRosterPath, volumeRosterPath);
+        console.log(`[startup] Seeded ${SC_ROSTERS_FILE} from git source → ${volumeRosterPath}`);
+      } catch { /* git source also missing */ }
+    }
+  }
+}
 
 const app = express();
 app.use(express.json());
