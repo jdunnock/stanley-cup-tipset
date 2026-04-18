@@ -287,7 +287,7 @@ function resolvePlayer(parsed, windowIndexes, seasonIndexes) {
 }
 
 async function main() {
-  const roster = JSON.parse(await readFile("data/period3-rosters.json", "utf8"));
+  const roster = JSON.parse(await readFile("data/period1-rosters.json", "utf8"));
   const skatersWindowRows = await fetchAll("skater", "points", FROM_DATE, TO_DATE);
   const goaliesWindowRows = await fetchAll("goalie", "wins", FROM_DATE, TO_DATE);
   const skatersSeasonRows = await fetchAll("skater", "points", null, TO_DATE);

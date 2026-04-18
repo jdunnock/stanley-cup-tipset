@@ -26,13 +26,13 @@ Tulkinta:
 
 - [ ] Stanley Cup validator toimii (`/team-validator.html`)
 - [ ] Kaikkien osallistujien Stanley Cup -joukkueet on syötetty validatorin kautta
-- [ ] `data/period3-rosters.json` sisältää kaikkien osallistujien pelaajat
+- [ ] `data/period1-rosters.json` sisältää kaikkien osallistujien pelaajat
 - [ ] Varmista että admin-kirjautuminen toimii (`/admin.html`)
 
 ## 3) Vaihtohetki (operointi)
 
 - [ ] Syötä tai tarkista puuttuvat Stanley Cup -joukkueet validatorissa
-- [ ] Varmista että `period3-rosters.json.enabled === true`
+- [ ] Varmista että `period1-rosters.json.enabled === true`
 - [ ] Aja force-refresh, jotta data lämpenee uudelle vaiheelle
 - [ ] Varmista että `Ställningen` ja `Lagen` latautuvat ilman virheitä
 
@@ -40,7 +40,7 @@ Tulkinta:
 
 15.3 aamulla (period 1 finalisointi):
 - [ ] Kutsu `GET /api/cron/daily-refresh` ilman `force=true`
-- [ ] Varmista että vastaus EI ole legacy-gate `period3_rosters_missing`
+- [ ] Varmista että vastaus EI ole legacy-gate `sc_rosters_missing`
 - [ ] Varmista että `date` on `2026-03-14` (tai vastaava period 1 viimeinen targetDate)
 
 16.3 aamulla (Stanley Cup gate aktiivinen):
@@ -71,7 +71,7 @@ Huomio:
 
 Jos Stanley Cup -data on virheellinen:
 
-1. Palauta edellinen toimiva `period3-rosters.json`
+1. Palauta edellinen toimiva `period1-rosters.json`
 2. Aja force-refresh uudelleen
 3. Tarkista `Lagen` + `Ställningen`
 4. Tee korjattu rosteri validatorissa ja toista vaihto

@@ -60,7 +60,7 @@ Sovellus käyttää tallennuksiin oletuksena:
 
 Tallennettavat tiedostot:
 - SQLite: `app-settings.sqlite`
-- rosteri-JSONit: `data/period1-rosters.json`, `data/period3-rosters.json`
+- rosteri-JSON: `data/period1-rosters.json`
 
 `railway.json` käyttää käynnistystä `npm run start:web`, joten erillistä start-komentoa ei tarvitse muuttaa.
 
@@ -194,15 +194,15 @@ Periodi 1 -> Stanley Cup -vaiheen operatiiviset ohjeet:
 
 #### Stanley Cup rosterit validatorin jälkeen
 
-Stanley Cup -vaihe voidaan käynnistää rosteri-JSONilla, jota ylläpidetään validatorin kautta. Legacy-tiedostonimi säilyy edelleen muodossa `period3-rosters.json`:
+Stanley Cup -vaihe käynnistetään rosteri-JSONilla, jota ylläpidetään validatorin kautta:
 
-1. Kopioi `data/period3-rosters.template.json` tiedostoksi `data/period3-rosters.json`
-2. Täytä kaikkien osallistujien rosterit (2 maalivahtia, 4 puolustajaa, 6 hyökkääjää)
-3. Aseta `"enabled": true`
+1. Avaa team-validator -sivu ja syötä osallistujan joukkue
+2. Hyväksytty joukkue tallentuu automaattisesti `data/period1-rosters.json` -tiedostoon
+3. Varmista että `"enabled": true` tiedostossa
 4. Aja daily refresh (`/api/cron/daily-refresh?force=true`) ja tarkista että blokkireason poistuu
 
 Huom:
-- `tipsen-summary` palauttaa kentän `rosterSource`, josta näet käytetäänkö `temporary_period3_rosters` lähdettä.
+- `tipsen-summary` palauttaa kentän `rosterSource`, josta näet käytetäänkö `sc_rosters` lähdettä.
 
 ### Nyheter release notes
 

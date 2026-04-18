@@ -16,7 +16,7 @@ Päätulokset:
 ## 2. Nykyinen arkkitehtuuri
 
 - Backend: Node.js + Express
-- Rosteridata: JSON-tiedostot (`period1-rosters.json`, `period3-rosters.json`; jälkimmäinen on legacy-tiedostonimi Stanley Cup -vaiheelle)
+- Rosteridata: JSON-tiedosto (`period1-rosters.json`) — Stanley Cup -veikkausten rosterit
 - Persistenssi: SQLite (app-settings + response cache) + rosteri-JSONit
 - UI: staattiset sivut public-kansiossa
 - Deploy: Railway
@@ -124,7 +124,7 @@ Hyväksymiskriteerit:
 - Nyheter käyttää viikkotilastotilaa aina kun endpointista löytyy vähintään kaksi snapshotia noin viikon välein (latest + baseline noin 7 päivää aiemmin)
 - Viikkotilassa `Raketer`, `Långsammaste klättrare` ja `Påverkan per deltagare` lasketaan snapshot-deltana (`latest - baseline`), ja otsikot vaihtuvat viikkokontekstiin
 - Ennen kuin viikkobaseline on saatavilla, sivu pysyy perioditilassa (selkeästi merkittynä), jotta lukijalle ei synny väärää viikkotulkintaa
-- Nyheter-snapshot-keräys on pausella kunnes Stanley Cup -JSON-rosteri on saatavilla (`period3-rosters.json`, legacy-tiedostonimi), jonka jälkeen keräys jatkuu normaalisti
+- Nyheter-snapshot-keräys on pausella kunnes Stanley Cup -JSON-rosteri on saatavilla (`period1-rosters.json`), jonka jälkeen keräys jatkuu normaalisti
 - Osiota `Redaktionens blinkning` ei näytetä tällä julkaisukierroksella
 - Nyheter-avauksessa mainitaan Stanley Cupin käynnistyminen (julkaisukierros 14.3.2026: "I morgon startar Stanley Cup")
 - Osio `Inför nästa vecka` poistetaan Nyheter-näkymästä, koska se ei tuo lisäarvoa suhteessa muihin osioihin
@@ -174,7 +174,7 @@ Rate limit -ympäristömuuttujat:
 - Ajoehdot (ellei `force=true`):
   - Helsingin kellonaika vähintään `AUTO_REFRESH_MIN_HOUR_FI` (oletus 9)
   - kohdepäivä on oletuksena `eilinen` Helsingin päivämäärästä (US-illan NHL-pelit)
-  - jos kohdepäivä on `2026-03-15` tai myöhemmin, ajo blokataan kunnes period 3 rosterilähde on käytettävissä (`period3-rosters.json`)
+  - jos kohdepäivä on `2026-03-15` tai myöhemmin, ajo blokataan kunnes SC-rosterilähde on käytettävissä (`period1-rosters.json`)
   - samaa päivää ei ole jo onnistuneesti ajettu (`autoRefreshLastSuccessDate`)
   - `data-readiness` palauttaa `ready=true`
 - Toteutus:
@@ -186,7 +186,7 @@ Rate limit -ympäristömuuttujat:
 
 - players-stats-compare käyttää cachea dataikkunassa
 - tipsen-summary käyttää omaa cachea (file+seasonId+compareDate+window)
-- injury- ja period3-ranking cacheissa käytetään in-flight pyyntölukitusta, jotta rinnakkaiset pyynnöt eivät tee samaa ulkoista fetchiä yhtä aikaa
+- injury- ja SC-ranking cacheissa käytetään in-flight pyyntölukitusta, jotta rinnakkaiset pyynnöt eivät tee samaa ulkoista fetchiä yhtä aikaa
 - response cache invalidoituu automaattisesti deployment/version vaihtuessa (startup flush), jotta vanha payload-rakenne ei jää voimaan tuotannossa
 - deploymentin jälkeen cache warmataan automaattisesti taustalla startupissa (`tipsen-summary` force refresh aktiivisella JSON-rosterilähteellä), jotta ensimmäinen käyttäjä ei joudu kylmään hakuun
 - cache-diagnostiikka (`hit`/`miss`) palautetaan `tipsen-summary`-vastaukseen vain kun sekä admin-auth että `debugCache=1` on mukana
@@ -286,6 +286,15 @@ Kun käytät PR:ää, käytä tätä:
 - Rollback plan
 
 ## 7. Muutosloki
+
+- 2026-04-18 (refactor/remove-period3-legacy)
+  - Poistettu legacy-tiedostonimi `period3-rosters.json` kokonaan; SC-rosterit luetaan ja kirjoitetaan nyt yhteen tiedostoon `period1-rosters.json`
+  - Nimetty kaikki `PERIOD3_*`-vakiot → `SC_*`, funktiot `*Period3*` → `*Sc*`, API-vastaukset `period3_rosters_missing` → `sc_rosters_missing` ja `temporary_period3_rosters` → `sc_rosters`
+  - Poistettu kahden rosteritiedoston rinnakkaisjärjestelmä (period1 + period3); validaattori ja pelimoottori käyttävät nyt samaa tiedostoa
+  - Poistettu `buildPeriod1PreviewResponse` ja `readPeriod1RostersRaw` (period1 preview -tila ei ole enää käytössä)
+  - Päivitetty `scripts/calc-period3-points.mjs` lukemaan `period1-rosters.json`
+  - Poistettu `data/period3-rosters.json` ja `data/period3-rosters.template.json`
+  - Korjattu `players-stats-compare` -endpointin rosterilähteen resoluutio: käytetään asetuksen `compareDate`-arvoa (ei adjusted-päivämäärää), jotta SC-rosterit löytyvät myös kun tipsen-summary tekee sisäisen kutsun päivämäärällä `compareDate - 1`
 
 - 2026-04-18 (fix/playoff-game-type-id)
   - Korjattu Stanley Cup -vaiheen datahaut käyttämään `gameTypeId=3` (playoffs) vanhan `gameTypeId=2` (regular season) sijaan; koskee `buildPeriod3RankingData` (cayenneExp), `resolveTipsenLiveSnapshot` (game-log), `extractSeasonStats` (seasonTotals + featuredStats), ja tipsen-summary compare-path (game-log)
@@ -459,9 +468,8 @@ Stanley Cupissa käytetään eri sijoituspisteitä kuin periodissa 1:
 
 ### 11.3 Stanley Cup -datan hallinta
 
-- Stanley Cup -rosterit syötetään validatorin kautta ja tallennetaan `data/period3-rosters.json` tiedostoon.
+- Stanley Cup -rosterit syötetään validatorin kautta ja tallennetaan `data/period1-rosters.json` tiedostoon.
 - Excel ei ole osa aktiivista tuotantopolkua.
-- Tekninen legacy-nimi `period3-rosters.json` säilyy toistaiseksi, jotta nykyinen rosteriputki, cache-avaimet ja operointiskriptit eivät rikkoudu.
 - Nykyinen period 1+2 -kokonaisuus säilyy historiallisena vertailuna, ja period 2 pisteet lukitaan Stanley Cup -total-laskennassa.
 
 ### 11.4 Toteutettu sovellusmalli
@@ -478,12 +486,12 @@ Stanley Cupissa käytetään eri sijoituspisteitä kuin periodissa 1:
 
 3) Admin- ja operointipolku
 - Aktiivinen periodi ohjataan `compareDate` arvolla (`POST /api/settings/compare-date`).
-- Käyttöönottotarkistus tehdään `tipsen-summary` vastauksen kentästä `rosterSource` (`period1_preview`, `temporary_period1_rosters` tai `temporary_period3_rosters`).
+- Käyttöönottotarkistus tehdään `tipsen-summary` vastauksen kentästä `rosterSource` (`sc_rosters`).
 - Uudet Stanley Cup -joukkueet luodaan validator-sivulla ja hyväksytyt rosterit tallennetaan JSON-muodossa mukaan veikkaukseen.
 
 4) Ajastus ja readiness
-- Päivittäinen auto refresh säilyy, mutta Stanley Cup -rajan jälkeen ajo estyy kunnes Stanley Cup -rosterilähde on käytettävissä (`period3-rosters.json`).
-- Readiness-signaalin legacy-syykoodi on edelleen `period3_rosters_missing`, eikä sitä muuteta tässä siivousvaiheessa API-yhteensopivuuden takia.
+- Päivittäinen auto refresh säilyy, mutta Stanley Cup -rajan jälkeen ajo estyy kunnes SC-rosterilähde on käytettävissä (`period1-rosters.json`).
+- Readiness-signaalin syykoodi on `sc_rosters_missing`.
 - Periodirajan vaihto on erillinen operatiivinen toimenpide (ei pelkkä päivittäinen refresh).
 
 ### 11.5 Tehdyt päätökset
