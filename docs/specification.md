@@ -287,6 +287,13 @@ Kun käytät PR:ää, käytä tätä:
 
 ## 7. Muutosloki
 
+- 2026-04-18 (fix/playoff-game-type-id)
+  - Korjattu Stanley Cup -vaiheen datahaut käyttämään `gameTypeId=3` (playoffs) vanhan `gameTypeId=2` (regular season) sijaan; koskee `buildPeriod3RankingData` (cayenneExp), `resolveTipsenLiveSnapshot` (game-log), `extractSeasonStats` (seasonTotals + featuredStats), ja tipsen-summary compare-path (game-log)
+  - Lisätty apufunktio `getGameTypeId(competitionType)` joka palauttaa `3` Stanley Cup -vaiheessa ja `2` muuten; kaikki datahaut käyttävät tätä kovakoodatun arvon sijaan
+  - `buildPeriod3RankingData` saa uuden parametrin `gameTypeId` — tipsen-kutsu välittää `3` (playoff), validator-kutsu `2` (RS ranking)
+  - `extractSeasonStats` saa uuden parametrin `gameTypeId` — playoff-vaiheessa suodattaa `gameTypeId===3` ja käyttää `featuredStats.playoffs` fallbackina
+  - Yhtenäistetty compareDate-käsittely live-fallback-polussa (M5): käytetään samaa `getPreviousDateIso`-logiikkaa kuin pää-compare-polussa SC-rostereille
+
 - 2026-04-18
   - Siivottu working tree palauttamalla tahaton drift pois tiedostoista `data/period1-rosters.json`, `public/index.html`, `public/lagen.html`, `public/nyheter.html`, `public/period3-validator.html` ja `public/stallning.html`; tämä oli puhdistus takaisin commitattuun tilaan eikä muuttanut tuotantokäyttäytymistä
   - Rajattu Excel/period 3 -siivous aktiiviseen käyttöpolkuun: käyttäjälle näkyvä sanasto ja operointidokumentaatio käyttävät nyt `Stanley Cup`-termiä, mutta tekniset legacy-avaimet kuten `period3-rosters.json` ja `period3_rosters_missing` säilyvät ennallaan, jotta rosteridata, asetukset ja automaatiot eivät rikkoudu

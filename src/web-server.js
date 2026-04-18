@@ -85,6 +85,10 @@ const ESPN_NHL_INJURIES_URL = "https://site.api.espn.com/apis/site/v2/sports/hoc
 const appBootedAt = new Date().toISOString();
 const buildTimestamp = process.env.BUILD_TIMESTAMP || process.env.RAILWAY_DEPLOYMENT_CREATED_AT || appBootedAt;
 
+function getGameTypeId(competitionType) {
+  return competitionType === "stanley_cup" ? 3 : 2;
+}
+
 function resolveCommitSha() {
   const envCandidates = [
     process.env.RAILWAY_GIT_COMMIT_SHA,
@@ -1025,9 +1029,11 @@ async function getTipsenSummaryPayload({
     };
   }
 
+  const adjustedCompareDate = useTemporaryPeriod3Rosters ? getPreviousDateIso(compareDate) : compareDate;
+
   const compareParams = new URLSearchParams({
     seasonId,
-    compareDate: useTemporaryPeriod3Rosters ? getPreviousDateIso(compareDate) : compareDate,
+    compareDate: adjustedCompareDate,
   });
   if (fileName) {
     compareParams.set("file", fileName);
@@ -1055,12 +1061,15 @@ async function getTipsenSummaryPayload({
   const tipsenTeamCache = new Map();
   const tipsenSnapshotCache = new Map();
   const injuryLookup = await getInjuryLookup();
+  const activeCompetitionType = getActiveCompetitionType();
+  const scGameTypeId = getGameTypeId(activeCompetitionType);
   const period3WindowRanking = useTemporaryPeriod3Rosters
     ? await buildPeriod3RankingData({
         fileName,
         seasonId,
-        fromDate: compareDate,
+        fromDate: adjustedCompareDate,
         toDate: getHelsinkiTodayDate(),
+        gameTypeId: scGameTypeId,
       })
     : null;
   const participants = [];
@@ -1091,9 +1100,10 @@ async function getTipsenSummaryPayload({
         liveSnapshot = await resolveTipsenLiveSnapshot({
           parsedCell,
           seasonId,
-          compareDate,
+          compareDate: adjustedCompareDate,
           teamCache: tipsenTeamCache,
           snapshotCache: tipsenSnapshotCache,
+          gameTypeId: scGameTypeId,
         });
       }
 
@@ -2469,8 +2479,8 @@ function buildOwnershipIndexFromRosters(participants) {
   };
 }
 
-async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate }) {
-  const cacheKey = `${fileName}|${seasonId}|${fromDate}|${toDate}`;
+async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate, gameTypeId = 2 }) {
+  const cacheKey = `${fileName}|${seasonId}|${fromDate}|${toDate}|${gameTypeId}`;
   const cacheFreshMs = 10 * 60 * 1000;
   if (
     period3ValidatorRankingCache.data &&
@@ -2550,7 +2560,7 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
     return token || "";
   }
 
-  const cayenneExp = `seasonId=${seasonId} and gameTypeId=2 and gameDate<="${toDate}" and gameDate>="${fromDate}"`;
+  const cayenneExp = `seasonId=${seasonId} and gameTypeId=${gameTypeId} and gameDate<="${toDate}" and gameDate>="${fromDate}"`;
   const skaterRows = await fetchStatsSummaryAll({
     entity: "skater",
     sortExpr: [
@@ -2961,7 +2971,7 @@ function pickTipsenTeamCandidate(players, parsedCell) {
   return fuzzyCandidates[0]?.candidate ?? null;
 }
 
-async function resolveTipsenLiveSnapshot({ parsedCell, seasonId, compareDate, teamCache, snapshotCache }) {
+async function resolveTipsenLiveSnapshot({ parsedCell, seasonId, compareDate, teamCache, snapshotCache, gameTypeId = 2 }) {
   const cacheKey = `${parsedCell.teamAbbrev}|${parsedCell.lastNameNormalized}|${parsedCell.firstInitial}`;
   if (snapshotCache.has(cacheKey)) {
     return snapshotCache.get(cacheKey);
@@ -2988,7 +2998,7 @@ async function resolveTipsenLiveSnapshot({ parsedCell, seasonId, compareDate, te
   try {
     const [landing, gameLogPayload] = await Promise.all([
       fetchJsonDirect(`/player/${candidate.playerId}/landing`),
-      fetchJsonDirect(`/player/${candidate.playerId}/game-log/${seasonId}/2`),
+      fetchJsonDirect(`/player/${candidate.playerId}/game-log/${seasonId}/${gameTypeId}`),
     ]);
 
     const gameLog = Array.isArray(gameLogPayload?.gameLog) ? gameLogPayload.gameLog : [];
@@ -3395,13 +3405,14 @@ async function callMcpTool(name, args) {
   throw new Error(`Failed MCP tool call: ${name}`);
 }
 
-function extractSeasonStats(playerLanding, seasonId) {
+function extractSeasonStats(playerLanding, seasonId, gameTypeId = 2) {
   const requested = Number.parseInt(String(seasonId), 10);
   const seasonRow = (playerLanding.seasonTotals ?? []).find(
-    (row) => row?.season === requested && row?.gameTypeId === 2 && row?.leagueAbbrev === "NHL"
+    (row) => row?.season === requested && row?.gameTypeId === gameTypeId && row?.leagueAbbrev === "NHL"
   );
 
-  const featured = playerLanding?.featuredStats?.regularSeason?.subSeason;
+  const featuredBranch = gameTypeId === 3 ? "playoffs" : "regularSeason";
+  const featured = playerLanding?.featuredStats?.[featuredBranch]?.subSeason;
   const featuredSeason = playerLanding?.featuredStats?.season;
 
   if (seasonRow) {
@@ -4354,6 +4365,9 @@ app.get("/api/players-stats-compare", playersCompareRateLimiter, async (req, res
 
     const { totalRows, resolvedPlayers, unresolvedItems } = await resolvePlayersFromRosterParticipants(rosterSource.participants);
 
+    const compareCompetitionType = getActiveCompetitionType();
+    const compareGameTypeId = getGameTypeId(compareCompetitionType);
+
     const resolvedItems = await runWithConcurrency(resolvedPlayers, PLAYER_FETCH_CONCURRENCY, async (player) => {
       try {
         let landing;
@@ -4361,15 +4375,15 @@ app.get("/api/players-stats-compare", playersCompareRateLimiter, async (req, res
 
         if (useMcpBridge) {
           landing = await fetchJson(`/player/${player.playerId}/landing`);
-          gameLogPayload = await fetchJson(`/player/${player.playerId}/game-log/${seasonId}/2`);
+          gameLogPayload = await fetchJson(`/player/${player.playerId}/game-log/${seasonId}/${compareGameTypeId}`);
         } else {
           [landing, gameLogPayload] = await Promise.all([
             fetchJson(`/player/${player.playerId}/landing`),
-            fetchJson(`/player/${player.playerId}/game-log/${seasonId}/2`),
+            fetchJson(`/player/${player.playerId}/game-log/${seasonId}/${compareGameTypeId}`),
           ]);
         }
 
-        const stats = extractSeasonStats(landing, seasonId);
+        const stats = extractSeasonStats(landing, seasonId, compareGameTypeId);
         const gameLog = Array.isArray(gameLogPayload?.gameLog) ? gameLogPayload.gameLog : [];
         const gamesUntilDate = gameLog.filter((game) => String(game.gameDate) <= compareDate);
         const isGoalie =
