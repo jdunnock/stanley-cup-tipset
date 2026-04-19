@@ -287,6 +287,11 @@ Kun käytät PR:ää, käytä tätä:
 
 ## 7. Muutosloki
 
+- 2026-04-19
+  - Vaihdettu oletussivu: `/` ohjaa nyt `stallning.html`:ään (aiemmin `lagen.html`)
+  - Vaihdettu `stallning.html` sivun title: `Ställningen` → `Stanley cup-tipset 2026`
+  - Korjattu `DEFAULT_COMPARE_DATE` arvosta `2026-01-24` → `2026-04-19`, joka esti SC-rostereiden aktivoitumisen tuotannossa
+
 - 2026-04-18 (refactor/remove-period3-legacy)
   - Poistettu legacy-tiedostonimi `period3-rosters.json` kokonaan; SC-rosterit luetaan ja kirjoitetaan nyt yhteen tiedostoon `period1-rosters.json`
   - Nimetty kaikki `PERIOD3_*`-vakiot → `SC_*`, funktiot `*Period3*` → `*Sc*`, API-vastaukset `period3_rosters_missing` → `sc_rosters_missing` ja `temporary_period3_rosters` → `sc_rosters`

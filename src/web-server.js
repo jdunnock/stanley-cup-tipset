@@ -3717,7 +3717,7 @@ app.use(requireAdminAccess);
 app.use(express.static(path.join(rootDir, "public"), { index: false }));
 
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(rootDir, "public", "lagen.html"));
+  res.sendFile(path.join(rootDir, "public", "stallning.html"));
 });
 
 app.get("/api/health", (_req, res) => {
