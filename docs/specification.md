@@ -16,7 +16,7 @@ Päätulokset:
 ## 2. Nykyinen arkkitehtuuri
 
 - Backend: Node.js + Express
-- Rosteridata: JSON-tiedostot (`period1-rosters.json`, `period3-rosters.json`)
+- Rosteridata: JSON-tiedosto (`period1-rosters.json`) — Stanley Cup -veikkausten rosterit
 - Persistenssi: SQLite (app-settings + response cache) + rosteri-JSONit
 - UI: staattiset sivut public-kansiossa
 - Deploy: Railway
@@ -98,14 +98,14 @@ Hyväksymiskriteerit:
   - Mattias 20, Fredrik 16, Joakim 13, Jarmo 11, Timmy 9, Kjell 7, Henrik 5
 - Period 2 -sijoituspisteasteikko (käytetään period 2 totaliin):
   - 20, 16, 13, 11, 9, 7, 5, 4, 3, 2, 1
-- Period 3 -sijoituspisteasteikko (käytetään period 3 totaliin):
+- Stanley Cup -sijoituspisteasteikko (käytetään Stanley Cup -totaliin; teknisesti sama asteikko kuin vanhan 3-periodisen mallin period 3:ssa):
   - 30, 24, 19, 15, 12, 10, 8, 6, 4, 2, 1
 - Tasapisteissä jaetaan sijoitusten pisteiden keskiarvo tasan kaikille tasapisteisille
-  - Esim. sijat 1-2 tasan: `(30 + 24) / 2 = 27` period 3:ssa
+  - Esim. sijat 1-2 tasan: `(30 + 24) / 2 = 27` Stanley Cupissa
   - Esim. sijat 1-3 tasan: `(30 + 24 + 19) / 3`, pyöristys lähimpään kokonaislukuun
-- Period 3:ssa period 2 pisteet lukitaan period 2 lopputuloksen mukaisiksi:
+- Stanley Cup -vaiheessa period 2 pisteet lukitaan period 2 lopputuloksen mukaisiksi:
   - Timmy 20, Fredrik 16, Joakim 13, Mattias 11, Kjell 9, Jarmo 7, Henrik 5
-- Period 3 -näkymässä otsikot ovat:
+- Stanley Cup -näkymässä otsikot ovat:
   - `Ställning Period 1`
   - `Ställning Stanley Cup`
   - `Totalställning inklusive Stanley Cup`
@@ -124,9 +124,9 @@ Hyväksymiskriteerit:
 - Nyheter käyttää viikkotilastotilaa aina kun endpointista löytyy vähintään kaksi snapshotia noin viikon välein (latest + baseline noin 7 päivää aiemmin)
 - Viikkotilassa `Raketer`, `Långsammaste klättrare` ja `Påverkan per deltagare` lasketaan snapshot-deltana (`latest - baseline`), ja otsikot vaihtuvat viikkokontekstiin
 - Ennen kuin viikkobaseline on saatavilla, sivu pysyy perioditilassa (selkeästi merkittynä), jotta lukijalle ei synny väärää viikkotulkintaa
-- Nyheter-snapshot-keräys on pausella kunnes period 3 -JSON-rosteri on saatavilla (`period3-rosters.json`), jonka jälkeen keräys jatkuu normaalisti
+- Nyheter-snapshot-keräys on pausella kunnes Stanley Cup -JSON-rosteri on saatavilla (`period1-rosters.json`), jonka jälkeen keräys jatkuu normaalisti
 - Osiota `Redaktionens blinkning` ei näytetä tällä julkaisukierroksella
-- Nyheter-avauksessa mainitaan period 3:n käynnistyminen (julkaisukierros 14.3.2026: "I morgon startar period 3")
+- Nyheter-avauksessa mainitaan Stanley Cupin käynnistyminen (julkaisukierros 14.3.2026: "I morgon startar Stanley Cup")
 - Osio `Inför nästa vecka` poistetaan Nyheter-näkymästä, koska se ei tuo lisäarvoa suhteessa muihin osioihin
 - Osio `Påverkan per deltagare` muodostetaan snapshotissa jokaisen osallistujan omista pelaajista (paras nousija + suurin jarru), jotta jokaiselle osallistujalle saadaan osallistujakohtainen sisältö eikä pelkkä globaali top-listan osuma
 - `Påverkan per deltagare`-taulukon toinen sarake kuvaa periodin kokonaiskertymää (`Totalt (period 2)`), ei viikon pistemuutosta
@@ -174,7 +174,7 @@ Rate limit -ympäristömuuttujat:
 - Ajoehdot (ellei `force=true`):
   - Helsingin kellonaika vähintään `AUTO_REFRESH_MIN_HOUR_FI` (oletus 9)
   - kohdepäivä on oletuksena `eilinen` Helsingin päivämäärästä (US-illan NHL-pelit)
-  - jos kohdepäivä on `2026-03-15` tai myöhemmin, ajo blokataan kunnes period 3 rosterilähde on käytettävissä (`period3-rosters.json`)
+  - jos kohdepäivä on `2026-03-15` tai myöhemmin, ajo blokataan kunnes SC-rosterilähde on käytettävissä (`period1-rosters.json`)
   - samaa päivää ei ole jo onnistuneesti ajettu (`autoRefreshLastSuccessDate`)
   - `data-readiness` palauttaa `ready=true`
 - Toteutus:
@@ -186,7 +186,7 @@ Rate limit -ympäristömuuttujat:
 
 - players-stats-compare käyttää cachea dataikkunassa
 - tipsen-summary käyttää omaa cachea (file+seasonId+compareDate+window)
-- injury- ja period3-ranking cacheissa käytetään in-flight pyyntölukitusta, jotta rinnakkaiset pyynnöt eivät tee samaa ulkoista fetchiä yhtä aikaa
+- injury- ja SC-ranking cacheissa käytetään in-flight pyyntölukitusta, jotta rinnakkaiset pyynnöt eivät tee samaa ulkoista fetchiä yhtä aikaa
 - response cache invalidoituu automaattisesti deployment/version vaihtuessa (startup flush), jotta vanha payload-rakenne ei jää voimaan tuotannossa
 - deploymentin jälkeen cache warmataan automaattisesti taustalla startupissa (`tipsen-summary` force refresh aktiivisella JSON-rosterilähteellä), jotta ensimmäinen käyttäjä ei joudu kylmään hakuun
 - cache-diagnostiikka (`hit`/`miss`) palautetaan `tipsen-summary`-vastaukseen vain kun sekä admin-auth että `debugCache=1` on mukana
@@ -287,11 +287,34 @@ Kun käytät PR:ää, käytä tätä:
 
 ## 7. Muutosloki
 
-- 2026-04-20
-  - Nyheter-snapshot-keräyksen pause-logiikka muutettu yleiseksi: keräys on aktiivinen aina kun mikä tahansa rosterlähde (period1 tai period3) on käytettävissä, eikä vaadi enää eksplisiittisesti period3-rosteria
-  - Auto-refresh ei enää estä ajoa `period3_rosters_missing`-syyllä kun period1-rosters on aktiivinen
+- 2026-04-19
+  - Vaihdettu oletussivu: `/` ohjaa nyt `stallning.html`:ään (aiemmin `lagen.html`)
+  - Vaihdettu `stallning.html` sivun title: `Ställningen` → `Stanley cup-tipset 2026`
+  - Korjattu `DEFAULT_COMPARE_DATE` arvosta `2026-01-24` → `2026-04-19`, joka esti SC-rostereiden aktivoitumisen tuotannossa
+
+- 2026-04-18 (refactor/remove-period3-legacy)
+  - Poistettu legacy-tiedostonimi `period3-rosters.json` kokonaan; SC-rosterit luetaan ja kirjoitetaan nyt yhteen tiedostoon `period1-rosters.json`
+  - Nimetty kaikki `PERIOD3_*`-vakiot → `SC_*`, funktiot `*Period3*` → `*Sc*`, API-vastaukset `period3_rosters_missing` → `sc_rosters_missing` ja `temporary_period3_rosters` → `sc_rosters`
+  - Poistettu kahden rosteritiedoston rinnakkaisjärjestelmä (period1 + period3); validaattori ja pelimoottori käyttävät nyt samaa tiedostoa
+  - Poistettu `buildPeriod1PreviewResponse` ja `readPeriod1RostersRaw` (period1 preview -tila ei ole enää käytössä)
+  - Päivitetty `scripts/calc-period3-points.mjs` lukemaan `period1-rosters.json`
+  - Poistettu `data/period3-rosters.json` ja `data/period3-rosters.template.json`
+  - Korjattu `players-stats-compare` -endpointin rosterilähteen resoluutio: käytetään asetuksen `compareDate`-arvoa (ei adjusted-päivämäärää), jotta SC-rosterit löytyvät myös kun tipsen-summary tekee sisäisen kutsun päivämäärällä `compareDate - 1`
+
+- 2026-04-18 (fix/playoff-game-type-id)
+  - Korjattu Stanley Cup -vaiheen datahaut käyttämään `gameTypeId=3` (playoffs) vanhan `gameTypeId=2` (regular season) sijaan; koskee `buildPeriod3RankingData` (cayenneExp), `resolveTipsenLiveSnapshot` (game-log), `extractSeasonStats` (seasonTotals + featuredStats), ja tipsen-summary compare-path (game-log)
+  - Lisätty apufunktio `getGameTypeId(competitionType)` joka palauttaa `3` Stanley Cup -vaiheessa ja `2` muuten; kaikki datahaut käyttävät tätä kovakoodatun arvon sijaan
+  - `buildPeriod3RankingData` saa uuden parametrin `gameTypeId` — tipsen-kutsu välittää `3` (playoff), validator-kutsu `2` (RS ranking)
+  - `extractSeasonStats` saa uuden parametrin `gameTypeId` — playoff-vaiheessa suodattaa `gameTypeId===3` ja käyttää `featuredStats.playoffs` fallbackina
+  - Yhtenäistetty compareDate-käsittely live-fallback-polussa (M5): käytetään samaa `getPreviousDateIso`-logiikkaa kuin pää-compare-polussa SC-rostereille
 
 - 2026-04-18
+  - Siivottu working tree palauttamalla tahaton drift pois tiedostoista `data/period1-rosters.json`, `public/index.html`, `public/lagen.html`, `public/nyheter.html`, `public/period3-validator.html` ja `public/stallning.html`; tämä oli puhdistus takaisin commitattuun tilaan eikä muuttanut tuotantokäyttäytymistä
+  - Rajattu Excel/period 3 -siivous aktiiviseen käyttöpolkuun: käyttäjälle näkyvä sanasto ja operointidokumentaatio käyttävät nyt `Stanley Cup`-termiä, mutta tekniset legacy-avaimet kuten `period3-rosters.json` ja `period3_rosters_missing` säilyvät ennallaan, jotta rosteridata, asetukset ja automaatiot eivät rikkoudu
+  - Siivottu README:n vanhat Excel-ohjeet ja poistuneet admin-endpoint-viittaukset; dokumentaatio vastaa nyt nykyistä JSON-roster + validator -mallia ilman Excel-polkuja
+  - Päivitetty Stanley Cup -operointidokumentit (`period3-go-live-runbook.md`, `period3-d-day-checklist.md`) nykyiseen sanastoon ja korjattu readiness-gaten legacy-syykoodi vastaamaan backendin todellista arvoa `period3_rosters_missing`
+  - Selkeytetty validatorin näkyvät virhetekstit ja `Nyheter`-sivun sisäinen terminologia Stanley Cup -vaiheeseen ilman muutoksia tietokannan tai rosteri-JSONien teknisiin avaimiin
+  - Siivottu README vastaamaan nykyistä JSON-roster + validator -mallia: poistettu vanhat `workflow-kit`, `docs/skills`, Excel-upload ja vanhentuneet admin-endpoint -viittaukset
   - Täsmennetty period 3 runbookin gate-reason vastaamaan nykyistä backend-signaalia `period3_rosters_missing`
   - Selkeytetty nykyisen Stanley Cup -kilpailun näkyvää terminologiaa: `Ställningen` käyttää nyt käyttäjälle näkyvissä otsikoissa ja sarakkeissa `Stanley Cup` / `SC` -sanastoa vanhan `Period 3` / `P3` -sanaston sijaan
   - Dokumentoitu, että nykyinen Stanley Cup -pisteytys käyttää vanhan 3-periodisen mallin period 3 -asteikkoa, mutta tätä legacy-termiä ei enää näytetä käyttöliittymässä kilpailun nimenä
@@ -434,57 +457,58 @@ Käyttöperiaate:
 - ylläpidä reusable promptit, skillit ja specification-template keskitetysti template-repossa
 - tuo uuteen projektiin vain tarvittavat tiedostot template-reposta bootstrap-vaiheessa
 
-## 11. Period 3 -siirtymä (toteutettu malli + operointi)
+## 11. Stanley Cup -siirtymä (toteutettu malli + operointi)
 
-### 11.1 Aikataulu ja periodirajat
+### 11.1 Aikataulu ja vaiheiden rajat
 
-- Period 2 päättyy `2026-03-15 klo 10:00` Ruotsin aikaa (`11:00` Suomen aikaa).
-- Käytännön sääntö: NHL-pelit, jotka pelataan illalla `2026-03-14`, kuuluvat vielä periodiin 2.
-- Period 3 alkaa `2026-03-15` illan otteluilla.
+- Period 1 päättyy `2026-03-15 klo 10:00` Ruotsin aikaa (`11:00` Suomen aikaa).
+- Käytännön sääntö: NHL-pelit, jotka pelataan illalla `2026-03-14`, kuuluvat vielä periodiin 1.
+- Stanley Cup alkaa `2026-03-15` illan otteluilla.
 
-### 11.2 Period 3 pisteasteikko
+### 11.2 Stanley Cup pisteasteikko
 
-Period 3:ssa käytetään eri sijoituspisteitä kuin periodeissa 1-2:
+Stanley Cupissa käytetään eri sijoituspisteitä kuin periodissa 1:
 
 - `30, 24, 19, 15, 12, 10, 8, 6, 4, 2, 1`
 
-### 11.3 Datan hallinta periodille 3
+### 11.3 Stanley Cup -datan hallinta
 
-- Period 3 rosterit syötetään validatorin kautta ja tallennetaan `data/period3-rosters.json` tiedostoon.
+- Stanley Cup -rosterit syötetään validatorin kautta ja tallennetaan `data/period1-rosters.json` tiedostoon.
 - Excel ei ole osa aktiivista tuotantopolkua.
-- Nykyinen period 1+2 -kokonaisuus säilyy historiallisena vertailuna, ja period 2 pisteet lukitaan period 3:n total-laskennassa.
+- Nykyinen period 1+2 -kokonaisuus säilyy historiallisena vertailuna, ja period 2 pisteet lukitaan Stanley Cup -total-laskennassa.
 
 ### 11.4 Toteutettu sovellusmalli
 
 1) Periodikonfiguraatio
-- Period 3 raja on `2026-03-15` (otteluikkunan alku).
-- Period 3 total käyttää omaa pisteasteikkoa (`30,24,19,15,12,10,8,6,4,2,1`).
+- Stanley Cup -raja on `2026-03-15` (otteluikkunan alku).
+- Stanley Cup -total käyttää omaa pisteasteikkoa (`30,24,19,15,12,10,8,6,4,2,1`).
 - Nykyinen Stanley Cup -kilpailu käyttää tätä samaa pisteasteikkoa, mutta käyttäjälle näkyvä UI nimeää vaiheen `Stanley Cup` eikä `Period 3`.
 
 2) Ställningen-näkymä
 - Periodi 1:n aikana näytetään vain kuluvan vaiheen taulukko otsikolla `Ställning Period 1` ilman total-yhteenvetoa.
-- Stanley Cup -vaiheessa näytetään `Ställning Stanley Cup` + `Totalställning inklusive Stanley Cup`.
+- Stanley Cup -vaiheessa otsikko pysyy `Ställning Period 1`. `Totalställning inklusive Stanley Cup` -osio piilotetaan kunnes period 2 on aktiivinen (`activePeriodNumber >= 2`).
 - Stanley Cup -vaiheen total-taulukossa sarakkeet näytetään muodossa `P1`, `P2`, `SC`, `Totalt`.
 
 3) Admin- ja operointipolku
 - Aktiivinen periodi ohjataan `compareDate` arvolla (`POST /api/settings/compare-date`).
-- Käyttöönottotarkistus tehdään `tipsen-summary` vastauksen kentästä `rosterSource` (`period1_preview`, `temporary_period1_rosters` tai `temporary_period3_rosters`).
+- Käyttöönottotarkistus tehdään `tipsen-summary` vastauksen kentästä `rosterSource` (`sc_rosters`).
 - Uudet Stanley Cup -joukkueet luodaan validator-sivulla ja hyväksytyt rosterit tallennetaan JSON-muodossa mukaan veikkaukseen.
 
 4) Ajastus ja readiness
-- Päivittäinen auto refresh säilyy, mutta period 3 rajan jälkeen ajo estyy kunnes period 3 rosterilähde on käytettävissä (`period3-rosters.json`).
+- Päivittäinen auto refresh säilyy, mutta Stanley Cup -rajan jälkeen ajo estyy kunnes SC-rosterilähde on käytettävissä (`period1-rosters.json`).
+- Readiness-signaalin syykoodi on `sc_rosters_missing`.
 - Periodirajan vaihto on erillinen operatiivinen toimenpide (ei pelkkä päivittäinen refresh).
 
 ### 11.5 Tehdyt päätökset
 
 - Periodivaihto tehdään manuaalisena admin-toimena `compareDate` kentän kautta.
 - UI näyttää aktiivisen vaiheen otsikkotasolla (`Period 2` vs `Stanley Cup`).
-- Period 1+2 lukitaan period 3 total-laskennassa käyttämällä period 2 lopputuloksen pistejakaumaa.
+- Period 1+2 lukitaan Stanley Cup -total-laskennassa käyttämällä period 2 lopputuloksen pistejakaumaa.
 
-### 11.10 Backoffice: Period 3 joukkuevalidatori
+### 11.10 Backoffice: Stanley Cup -joukkuevalidatori
 
 Tavoite:
-- Tarjota backoffice-käyttöön erillinen tarkistustyökalu, jolla validoidaan yhden osallistujan period 3 -joukkue kerrallaan ennen lukitusta.
+- Tarjota backoffice-käyttöön erillinen tarkistustyökalu, jolla validoidaan yhden osallistujan Stanley Cup -joukkue kerrallaan ennen lukitusta.
 - Ei osa julkista tuotantokäyttöliittymää.
 
 Toteutus:
@@ -534,9 +558,9 @@ Normalisointi:
 
 Hard fail -säännöt:
 - Roolijakauma on täsmälleen: 2 maalivahtia, 4 puolustajaa, 6 hyökkääjää.
-- Osallistujan period 3 -joukkueessa pitää vaihtua vähintään 2 pelaajaa verrattuna saman osallistujan period 2 -joukkueeseen.
+- Osallistujan Stanley Cup -joukkueessa pitää vaihtua vähintään 2 pelaajaa verrattuna saman osallistujan aiemman vaiheen joukkueeseen.
 - Maksimissaan 2 pelaajaa samasta nykyisestä NHL-joukkueesta kaikkien 12 pelaajan yli.
-- Et voi valita pelaajaa, joka oli period 2:ssa jollakin toisella osallistujalla, ellei pelaaja ollut myös sinulla period 2:ssa.
+- Et voi valita pelaajaa, joka oli aiemmassa vaiheessa jollakin toisella osallistujalla, ellei pelaaja ollut myös sinulla aiemmassa vaiheessa.
 - Ukkopelaajien sijaan sääntö koskee ulkopelaajia (puolustajat + hyökkääjät):
   - Rankingjakso tulee kilpailukohtaisesta asetuksesta (`rankingFrom` - `rankingTo`), jota hallitaan Adminissa ja tallennetaan SQLite-asetuksiin.
   - Rankingjärjestys: pisteet, tasatilanteessa tehdyt maalit.

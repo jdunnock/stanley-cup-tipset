@@ -2,7 +2,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import path from "node:path";
 import { promises as fs } from "node:fs";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, statSync, copyFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
@@ -10,7 +10,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 const PORT = Number.parseInt(process.env.PORT ?? "3000", 10);
-const DEFAULT_COMPARE_DATE = "2026-01-24";
+const DEFAULT_COMPARE_DATE = "2026-04-19";
 const TIPSEN_PLAYER_ROWS = [6, 7, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21];
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,22 +44,21 @@ const AUTO_REFRESH_SCHEDULER_ENABLED = String(process.env.AUTO_REFRESH_SCHEDULER
 const AUTO_REFRESH_CHECK_INTERVAL_MS = Number.parseInt(process.env.AUTO_REFRESH_CHECK_INTERVAL_MS ?? "900000", 10);
 const STARTUP_CACHE_WARMUP_ENABLED = String(process.env.STARTUP_CACHE_WARMUP_ENABLED ?? "true").toLowerCase() === "true";
 const STARTUP_CACHE_WARMUP_DELAY_MS = Number.parseInt(process.env.STARTUP_CACHE_WARMUP_DELAY_MS ?? "5000", 10);
-const PERIOD3_REQUIRED_TARGET_DATE = "2026-03-15";
-const PERIOD3_TEMP_ROSTERS_FILE = "period3-rosters.json";
-const PERIOD1_TEMP_ROSTERS_FILE = "period1-rosters.json";
-const PERIOD3_VALIDATOR_SEASON_ID = "20252026";
-const PERIOD3_VALIDATOR_RANKING_FROM = "2025-10-07";
-const PERIOD3_VALIDATOR_RANKING_TO = "2026-04-17";
+const SC_REQUIRED_TARGET_DATE = "2026-03-15";
+const SC_ROSTERS_FILE = "period1-rosters.json";
+const SC_VALIDATOR_SEASON_ID = "20252026";
+const SC_VALIDATOR_RANKING_FROM = "2025-10-07";
+const SC_VALIDATOR_RANKING_TO = "2026-04-17";
 const SUPPORTED_COMPETITION_TYPES = ["stanley_cup", "autumn"];
 const DEFAULT_COMPETITION_TYPE = "stanley_cup";
 const DEFAULT_COMPETITION_RANKING_WINDOWS = {
   stanley_cup: {
-    rankingFrom: PERIOD3_VALIDATOR_RANKING_FROM,
-    rankingTo: PERIOD3_VALIDATOR_RANKING_TO,
+    rankingFrom: SC_VALIDATOR_RANKING_FROM,
+    rankingTo: SC_VALIDATOR_RANKING_TO,
   },
   autumn: {
-    rankingFrom: PERIOD3_VALIDATOR_RANKING_FROM,
-    rankingTo: PERIOD3_VALIDATOR_RANKING_TO,
+    rankingFrom: SC_VALIDATOR_RANKING_FROM,
+    rankingTo: SC_VALIDATOR_RANKING_TO,
   },
 };
 const EXPECTED_PERIOD_COUNT_BY_COMPETITION = {
@@ -84,6 +83,10 @@ const TEAM_VALIDATOR_RATE_LIMIT_MAX = Number.parseInt(process.env.TEAM_VALIDATOR
 const ESPN_NHL_INJURIES_URL = "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/injuries";
 const appBootedAt = new Date().toISOString();
 const buildTimestamp = process.env.BUILD_TIMESTAMP || process.env.RAILWAY_DEPLOYMENT_CREATED_AT || appBootedAt;
+
+function getGameTypeId(competitionType) {
+  return competitionType === "stanley_cup" ? 3 : 2;
+}
 
 function resolveCommitSha() {
   const envCandidates = [
@@ -119,7 +122,25 @@ function resolveCommitSha() {
 const commitSha = resolveCommitSha();
 
 mkdirSync(storageRoot, { recursive: true });
+mkdirSync(dataDir, { recursive: true });
 mkdirSync(path.dirname(settingsDbPath), { recursive: true });
+
+// Seed roster file from git source into volume if missing
+{
+  const volumeRosterPath = path.join(dataDir, SC_ROSTERS_FILE);
+  const gitRosterPath = path.join(rootDir, "data", SC_ROSTERS_FILE);
+  if (dataDir !== path.join(rootDir, "data")) {
+    let exists = false;
+    try { statSync(volumeRosterPath); exists = true; } catch { /* missing */ }
+    if (!exists) {
+      try {
+        statSync(gitRosterPath);
+        copyFileSync(gitRosterPath, volumeRosterPath);
+        console.log(`[startup] Seeded ${SC_ROSTERS_FILE} from git source → ${volumeRosterPath}`);
+      } catch { /* git source also missing */ }
+    }
+  }
+}
 
 const app = express();
 app.use(express.json());
@@ -204,12 +225,12 @@ let injuryCache = {
   data: new Map(),
 };
 let injuryCacheFetchPromise = null;
-let period3ValidatorRankingCache = {
+let scValidatorRankingCache = {
   cacheKey: "",
   cachedAt: 0,
   data: null,
 };
-const period3ValidatorRankingInFlightByCacheKey = new Map();
+const scValidatorRankingInFlightByCacheKey = new Map();
 const settingsDb = new Database(settingsDbPath);
 
 settingsDb.exec(`
@@ -835,76 +856,6 @@ class EndpointProxyError extends Error {
   }
 }
 
-async function buildPeriod1PreviewResponse(fileName, seasonId, compareDate) {
-  const period1Preview = await readPeriod1RostersRaw();
-  if (period1Preview === null) {
-    return null;
-  }
-
-  const previewRosterRows = [
-    { rowNumber: 1, role: "Maalivahti" },
-    { rowNumber: 2, role: "Maalivahti" },
-    { rowNumber: 3, role: "Puolustaja" },
-    { rowNumber: 4, role: "Puolustaja" },
-    { rowNumber: 5, role: "Puolustaja" },
-    { rowNumber: 6, role: "Puolustaja" },
-    { rowNumber: 7, role: "Hyökkääjä" },
-    { rowNumber: 8, role: "Hyökkääjä" },
-    { rowNumber: 9, role: "Hyökkääjä" },
-    { rowNumber: 10, role: "Hyökkääjä" },
-    { rowNumber: 11, role: "Hyökkääjä" },
-    { rowNumber: 12, role: "Hyökkääjä" },
-  ];
-
-  const previewParticipants = period1Preview.participants.map((participant) => {
-    const players = [];
-    let rn = 1;
-    for (const label of participant.goalies ?? []) {
-      players.push({
-        rowNumber: rn++,
-        role: "Maalivahti",
-        playerLabel: String(label),
-        teamAbbrev: "",
-        deltaPoints: 0,
-        source: "period1_preview",
-        matchedFullName: "",
-      });
-    }
-    for (const label of participant.defenders ?? []) {
-      players.push({
-        rowNumber: rn++,
-        role: "Puolustaja",
-        playerLabel: String(label),
-        teamAbbrev: "",
-        deltaPoints: 0,
-        source: "period1_preview",
-        matchedFullName: "",
-      });
-    }
-    for (const label of participant.forwards ?? []) {
-      players.push({
-        rowNumber: rn++,
-        role: "Hyökkääjä",
-        playerLabel: String(label),
-        teamAbbrev: "",
-        deltaPoints: 0,
-        source: "period1_preview",
-        matchedFullName: "",
-      });
-    }
-    return { name: participant.name, totalDelta: 0, players };
-  });
-
-  return {
-    file: fileName,
-    seasonId,
-    compareDate,
-    rosterSource: "period1_preview",
-    rosterRows: previewRosterRows,
-    participants: previewParticipants,
-  };
-}
-
 function resolvePlayerMatch(parsedCell, compareIndexes, liveSnapshot) {
   const { byTeamAndLast, byTeamLastAndInitial, byLastName, byLastAndInitial } = compareIndexes;
 
@@ -943,8 +894,8 @@ function resolvePlayerMatch(parsedCell, compareIndexes, liveSnapshot) {
   };
 }
 
-function resolveDeltaPointsForPeriod3(period3WindowRanking, isGoalieRole, preferredName, resolvedTeamAbbrev, currentDeltaPoints) {
-  if (!period3WindowRanking) {
+function resolveDeltaPointsForSc(scWindowRanking, isGoalieRole, preferredName, resolvedTeamAbbrev, currentDeltaPoints) {
+  if (!scWindowRanking) {
     return currentDeltaPoints;
   }
 
@@ -952,15 +903,15 @@ function resolveDeltaPointsForPeriod3(period3WindowRanking, isGoalieRole, prefer
   const lastKey = buildPlayerLastTeamKey(preferredName, resolvedTeamAbbrev);
 
   if (isGoalieRole) {
-    const byFull = period3WindowRanking.goalieByFullKey.get(fullKey) ?? [];
-    const byLast = period3WindowRanking.goalieByLastKey.get(lastKey) ?? [];
+    const byFull = scWindowRanking.goalieByFullKey.get(fullKey) ?? [];
+    const byLast = scWindowRanking.goalieByLastKey.get(lastKey) ?? [];
     const goalieMatch = byFull[0] ?? byLast[0] ?? null;
     if (goalieMatch && Number.isFinite(Number(goalieMatch.points))) {
       return Number(goalieMatch.points);
     }
   } else {
-    const byFull = period3WindowRanking.skaterByFullKey.get(fullKey) ?? [];
-    const byLast = period3WindowRanking.skaterByLastKey.get(lastKey) ?? [];
+    const byFull = scWindowRanking.skaterByFullKey.get(fullKey) ?? [];
+    const byLast = scWindowRanking.skaterByLastKey.get(lastKey) ?? [];
     const skaterMatch = byFull[0] ?? byLast[0] ?? null;
     if (skaterMatch && Number.isFinite(Number(skaterMatch.points))) {
       return Number(skaterMatch.points);
@@ -990,15 +941,8 @@ async function getTipsenSummaryPayload({
   forceRefresh = false,
   includeCacheDebug = false,
 } = {}) {
-  // Period 1 preview: show enrolled teams with 0 points while game has not started (enabled === false).
-  // Automatically deactivated when enabled flips to true — no code change needed.
-  const period1Response = await buildPeriod1PreviewResponse(fileName, seasonId, compareDate);
-  if (period1Response) {
-    return period1Response;
-  }
-
-  const rosterSource = await resolveActiveTemporaryRosterSource(compareDate);
-  const useTemporaryPeriod3Rosters = rosterSource.rosterSource === "temporary_period3_rosters";
+  const rosterSource = await resolveActiveRosterSource(compareDate);
+  const useScRosters = rosterSource.rosterSource === "sc_rosters";
   const rosterSourceKey = rosterSource.sourceKey;
 
   const dataWindowKey = getHelsinkiDateWindowKey();
@@ -1025,9 +969,11 @@ async function getTipsenSummaryPayload({
     };
   }
 
+  const adjustedCompareDate = useScRosters ? getPreviousDateIso(compareDate) : compareDate;
+
   const compareParams = new URLSearchParams({
     seasonId,
-    compareDate: useTemporaryPeriod3Rosters ? getPreviousDateIso(compareDate) : compareDate,
+    compareDate: adjustedCompareDate,
   });
   if (fileName) {
     compareParams.set("file", fileName);
@@ -1055,12 +1001,15 @@ async function getTipsenSummaryPayload({
   const tipsenTeamCache = new Map();
   const tipsenSnapshotCache = new Map();
   const injuryLookup = await getInjuryLookup();
-  const period3WindowRanking = useTemporaryPeriod3Rosters
-    ? await buildPeriod3RankingData({
+  const activeCompetitionType = getActiveCompetitionType();
+  const scGameTypeId = getGameTypeId(activeCompetitionType);
+  const scWindowRanking = useScRosters
+    ? await buildScRankingData({
         fileName,
         seasonId,
-        fromDate: compareDate,
+        fromDate: adjustedCompareDate,
         toDate: getHelsinkiTodayDate(),
+        gameTypeId: scGameTypeId,
       })
     : null;
   const participants = [];
@@ -1091,9 +1040,10 @@ async function getTipsenSummaryPayload({
         liveSnapshot = await resolveTipsenLiveSnapshot({
           parsedCell,
           seasonId,
-          compareDate,
+          compareDate: adjustedCompareDate,
           teamCache: tipsenTeamCache,
           snapshotCache: tipsenSnapshotCache,
+          gameTypeId: scGameTypeId,
         });
       }
 
@@ -1115,8 +1065,8 @@ async function getTipsenSummaryPayload({
       const isGoalieRole = roleToken === "mv" || roleToken.includes("maalivahti") || roleToken.includes("goalie");
       let deltaPoints = matched?.deltaPoints ?? liveSnapshot?.deltaPoints ?? null;
 
-      deltaPoints = resolveDeltaPointsForPeriod3(
-        period3WindowRanking,
+      deltaPoints = resolveDeltaPointsForSc(
+        scWindowRanking,
         isGoalieRole,
         String(matched?.fullName ?? liveSnapshot?.matchedFullName ?? parsedCell.playerName ?? "").trim(),
         resolvedTeamAbbrev,
@@ -1436,7 +1386,8 @@ async function collectNyheterSnapshot({
       seasonId,
       compareDate,
       paused: true,
-      reason: "no_roster_source",
+      reason: "sc_rosters_missing",
+      requiredFromDate: SC_REQUIRED_TARGET_DATE,
     };
   }
 
@@ -1550,13 +1501,14 @@ async function runDailyAutoRefresh({
       };
     }
 
-    if (!(await hasAnyRosterSource())) {
+    if (targetDate >= SC_REQUIRED_TARGET_DATE && !(await hasScRosterSource())) {
       return {
         ok: true,
         executed: false,
-        reason: "no_roster_source",
+        reason: "sc_rosters_missing",
         trigger,
         date: targetDate,
+        requiredFromDate: SC_REQUIRED_TARGET_DATE,
       };
     }
 
@@ -1616,7 +1568,8 @@ async function runDailyAutoRefresh({
         snapshots: [],
         snapshotErrors: [],
         snapshotsPaused: true,
-        snapshotsPauseReason: "no_roster_source",
+        snapshotsPauseReason: "sc_rosters_missing",
+        snapshotRequiredFromDate: SC_REQUIRED_TARGET_DATE,
       };
     }
 
@@ -1666,7 +1619,7 @@ async function warmTipsenCacheOnStartup() {
   const compareDate = getSetting("compareDate", DEFAULT_COMPARE_DATE);
   let rosterSource;
   try {
-    rosterSource = await resolveActiveTemporaryRosterSource(getHelsinkiTodayDate());
+    rosterSource = await resolveActiveRosterSource(getHelsinkiTodayDate());
   } catch {
     console.log("[cache-warmup] skipped: no active roster source available");
     return;
@@ -1950,7 +1903,7 @@ function parseTemporaryRosterEntry(entryValue) {
   return parseTipsenPlayerCell(raw);
 }
 
-function getPeriod3RosterRowConfig() {
+function getScRosterRowConfig() {
   return TIPSEN_PLAYER_ROWS.map((rowNumber, index) => {
     if (index < 2) {
       return { rowNumber, role: "Maalivahti", roleKey: "goalie" };
@@ -1962,21 +1915,21 @@ function getPeriod3RosterRowConfig() {
   });
 }
 
-function getTemporaryPeriod3RostersPath() {
-  return path.join(dataDir, PERIOD3_TEMP_ROSTERS_FILE);
+function getScRostersPath() {
+  return path.join(dataDir, SC_ROSTERS_FILE);
 }
 
-function getTemporaryPeriod3RosterCandidatePaths() {
+function getScRosterCandidatePaths() {
   const candidates = [
-    path.join(dataDir, PERIOD3_TEMP_ROSTERS_FILE),
-    path.join(rootDir, "data", PERIOD3_TEMP_ROSTERS_FILE),
+    path.join(dataDir, SC_ROSTERS_FILE),
+    path.join(rootDir, "data", SC_ROSTERS_FILE),
   ];
 
   return Array.from(new Set(candidates));
 }
 
-async function resolveTemporaryPeriod3RostersPath() {
-  for (const candidatePath of getTemporaryPeriod3RosterCandidatePaths()) {
+async function resolveScRostersPath() {
+  for (const candidatePath of getScRosterCandidatePaths()) {
     try {
       const stat = await fs.stat(candidatePath);
       if (stat.isFile()) {
@@ -1987,23 +1940,23 @@ async function resolveTemporaryPeriod3RostersPath() {
     }
   }
 
-  throw new Error(`${PERIOD3_TEMP_ROSTERS_FILE} not found`);
+  throw new Error(`${SC_ROSTERS_FILE} not found`);
 }
 
-async function loadTemporaryPeriod3Rosters() {
-  const filePath = await resolveTemporaryPeriod3RostersPath();
+async function loadScRosters() {
+  const filePath = await resolveScRostersPath();
   const raw = await fs.readFile(filePath, "utf8");
   const payload = JSON.parse(raw);
 
   if (payload?.enabled !== true) {
-    throw new Error(`${PERIOD3_TEMP_ROSTERS_FILE} exists but enabled is not true`);
+    throw new Error(`${SC_ROSTERS_FILE} exists but enabled is not true`);
   }
 
   if (!Array.isArray(payload?.participants) || payload.participants.length === 0) {
-    throw new Error(`${PERIOD3_TEMP_ROSTERS_FILE} must contain a non-empty participants array`);
+    throw new Error(`${SC_ROSTERS_FILE} must contain a non-empty participants array`);
   }
 
-  const rowConfig = getPeriod3RosterRowConfig();
+  const rowConfig = getScRosterRowConfig();
   const participantColumns = payload.participants.map((participant, participantIndex) => {
     const name = String(participant?.name ?? "").trim();
     if (!name) {
@@ -2060,9 +2013,9 @@ async function loadTemporaryPeriod3Rosters() {
   };
 }
 
-async function loadEnabledTemporaryPeriod3RostersRaw() {
+async function loadEnabledScRostersRaw() {
   try {
-    const filePath = await resolveTemporaryPeriod3RostersPath();
+    const filePath = await resolveScRostersPath();
     const raw = await fs.readFile(filePath, "utf8");
     const payload = JSON.parse(raw);
 
@@ -2078,19 +2031,19 @@ async function loadEnabledTemporaryPeriod3RostersRaw() {
     return {
       participants: payload.participants,
       version: String(stat.mtimeMs),
-      sourceLabel: PERIOD3_TEMP_ROSTERS_FILE,
-      rosterSource: "temporary_period3_rosters",
-      sourceKey: `temp_period3_rosters:${String(stat.mtimeMs)}`,
+      sourceLabel: SC_ROSTERS_FILE,
+      rosterSource: "sc_rosters",
+      sourceKey: `sc_rosters:${String(stat.mtimeMs)}`,
     };
   } catch {
     return null;
   }
 }
 
-async function getTemporaryPeriod3RostersVersion() {
+async function getScRostersVersion() {
   try {
-    const filePath = await resolveTemporaryPeriod3RostersPath();
-    await loadTemporaryPeriod3Rosters();
+    const filePath = await resolveScRostersPath();
+    await loadScRosters();
     const stat = await fs.stat(filePath);
     return String(stat.mtimeMs);
   } catch {
@@ -2098,74 +2051,24 @@ async function getTemporaryPeriod3RostersVersion() {
   }
 }
 
-async function hasTemporaryPeriod3Rosters() {
-  const version = await getTemporaryPeriod3RostersVersion();
+async function hasScRosters() {
+  const version = await getScRostersVersion();
   return Boolean(version);
 }
 
-async function resolveTemporaryPeriod1RostersPath() {
-  return path.join(dataDir, PERIOD1_TEMP_ROSTERS_FILE);
-}
-
-async function loadTemporaryPeriod1Rosters() {
-  const filePath = await resolveTemporaryPeriod1RostersPath();
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    const payload = JSON.parse(raw);
-
-    if (payload?.enabled !== true) {
-      return null;
-    }
-
-    if (!Array.isArray(payload?.participants)) {
-      return null;
-    }
-
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-async function loadEnabledTemporaryPeriod1RostersRaw() {
-  try {
-    const payload = await loadTemporaryPeriod1Rosters();
-    if (!payload || !Array.isArray(payload.participants) || payload.participants.length === 0) {
-      return null;
-    }
-
-    const filePath = await resolveTemporaryPeriod1RostersPath();
-    const stat = await fs.stat(filePath);
-    return {
-      participants: payload.participants,
-      version: String(stat.mtimeMs),
-      sourceLabel: PERIOD1_TEMP_ROSTERS_FILE,
-      rosterSource: "temporary_period1_rosters",
-      sourceKey: `temp_period1_rosters:${String(stat.mtimeMs)}`,
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function resolveActiveTemporaryRosterSource(compareDate) {
-  if (compareDate >= PERIOD3_REQUIRED_TARGET_DATE) {
-    const period3 = await loadEnabledTemporaryPeriod3RostersRaw();
-    if (period3) {
-      return period3;
+async function resolveActiveRosterSource(compareDate) {
+  if (compareDate >= SC_REQUIRED_TARGET_DATE) {
+    const sc = await loadEnabledScRostersRaw();
+    if (sc) {
+      return sc;
     }
   }
 
-  const period1 = await loadEnabledTemporaryPeriod1RostersRaw();
-  if (period1) {
-    return period1;
-  }
-
-  throw new Error("No enabled temporary roster source found (period1/period3)");
+  throw new Error("No enabled SC roster source found (check period1-rosters.json enabled + participants)");
 }
 
 function buildTemporaryParticipantColumns(participants) {
-  const rowConfig = getPeriod3RosterRowConfig();
+  const rowConfig = getScRosterRowConfig();
   const participantColumns = participants.map((participant, participantIndex) => {
     const name = String(participant?.name ?? "").trim();
     if (!name) {
@@ -2222,27 +2125,8 @@ function buildTemporaryParticipantColumns(participants) {
   };
 }
 
-// Returns raw period1-rosters payload when enabled === false and participants exist.
-// Returns null when enabled === true (game active) or file missing/empty.
-async function readPeriod1RostersRaw() {
-  const filePath = await resolveTemporaryPeriod1RostersPath();
-  try {
-    const raw = await fs.readFile(filePath, "utf8");
-    const payload = JSON.parse(raw);
-    if (payload?.enabled !== false) {
-      return null;
-    }
-    if (!Array.isArray(payload?.participants) || payload.participants.length === 0) {
-      return null;
-    }
-    return payload;
-  } catch {
-    return null;
-  }
-}
-
-async function savePeriod1Roster(participantName, rosterData) {
-  const filePath = await resolveTemporaryPeriod1RostersPath();
+async function saveScRoster(participantName, rosterData) {
+  const filePath = await resolveScRostersPath();
   
   try {
     const name = String(participantName ?? "").trim();
@@ -2286,7 +2170,7 @@ async function savePeriod1Roster(participantName, rosterData) {
     await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf8");
     return true;
   } catch (error) {
-    console.error(`Failed to save Period 1 roster for ${participantName}:`, error);
+    console.error(`Failed to save SC roster for ${participantName}:`, error);
     return false;
   }
 }
@@ -2309,7 +2193,7 @@ function buildPlayerFullTeamKey(playerName, teamAbbrev) {
   return `${fullName}|${team}`;
 }
 
-function parsePeriod3RosterText(rosterText) {
+function parseScRosterText(rosterText) {
   const lines = String(rosterText ?? "").split(/\r?\n/);
   const sectionMap = {
     maalivahdit: "goalie",
@@ -2466,18 +2350,18 @@ function buildOwnershipIndexFromRosters(participants) {
   };
 }
 
-async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate }) {
-  const cacheKey = `${fileName}|${seasonId}|${fromDate}|${toDate}`;
+async function buildScRankingData({ fileName, seasonId, fromDate, toDate, gameTypeId = 2 }) {
+  const cacheKey = `${fileName}|${seasonId}|${fromDate}|${toDate}|${gameTypeId}`;
   const cacheFreshMs = 10 * 60 * 1000;
   if (
-    period3ValidatorRankingCache.data &&
-    period3ValidatorRankingCache.cacheKey === cacheKey &&
-    Date.now() - period3ValidatorRankingCache.cachedAt < cacheFreshMs
+    scValidatorRankingCache.data &&
+    scValidatorRankingCache.cacheKey === cacheKey &&
+    Date.now() - scValidatorRankingCache.cachedAt < cacheFreshMs
   ) {
-    return period3ValidatorRankingCache.data;
+    return scValidatorRankingCache.data;
   }
 
-  const inFlightRequest = period3ValidatorRankingInFlightByCacheKey.get(cacheKey);
+  const inFlightRequest = scValidatorRankingInFlightByCacheKey.get(cacheKey);
   if (inFlightRequest) {
     return await inFlightRequest;
   }
@@ -2547,7 +2431,7 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
     return token || "";
   }
 
-  const cayenneExp = `seasonId=${seasonId} and gameTypeId=2 and gameDate<="${toDate}" and gameDate>="${fromDate}"`;
+  const cayenneExp = `seasonId=${seasonId} and gameTypeId=${gameTypeId} and gameDate<="${toDate}" and gameDate>="${fromDate}"`;
   const skaterRows = await fetchStatsSummaryAll({
     entity: "skater",
     sortExpr: [
@@ -2559,7 +2443,10 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
 
   const goalieRows = await fetchStatsSummaryAll({
     entity: "goalie",
-    sortExpr: [{ property: "wins", direction: "DESC" }],
+    sortExpr: [
+      { property: "wins", direction: "DESC" },
+      { property: "gamesPlayed", direction: "DESC" },
+    ],
     cayenneExp,
   });
 
@@ -2587,9 +2474,10 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
         Number(row?.shutouts ?? 0) * 2,
       goals: 0,
       wins: Number(row?.wins ?? 0),
+      gamesPlayed: Number(row?.gamesPlayed ?? 0),
     }))
     .filter((row) => row.fullName && row.teamAbbrev)
-    .sort((left, right) => right.wins - left.wins || left.fullName.localeCompare(right.fullName));
+    .sort((left, right) => right.wins - left.wins || right.gamesPlayed - left.gamesPlayed || left.fullName.localeCompare(right.fullName));
 
   const skaterByFullKey = new Map();
   const skaterByLastKey = new Map();
@@ -2628,7 +2516,7 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
       goalieByLastKey,
     };
 
-    period3ValidatorRankingCache = {
+    scValidatorRankingCache = {
       cacheKey,
       cachedAt: Date.now(),
       data,
@@ -2637,11 +2525,11 @@ async function buildPeriod3RankingData({ fileName, seasonId, fromDate, toDate })
     return data;
   })();
 
-  period3ValidatorRankingInFlightByCacheKey.set(cacheKey, computePromise);
+  scValidatorRankingInFlightByCacheKey.set(cacheKey, computePromise);
   try {
     return await computePromise;
   } finally {
-    period3ValidatorRankingInFlightByCacheKey.delete(cacheKey);
+    scValidatorRankingInFlightByCacheKey.delete(cacheKey);
   }
 }
 
@@ -2658,7 +2546,7 @@ async function validateTeam({
   const errors = [];
   const warnings = [];
 
-  const parsed = parsePeriod3RosterText(rosterText);
+  const parsed = parseScRosterText(rosterText);
   if (parsed.parseErrors.length) {
     errors.push(...parsed.parseErrors);
     return {
@@ -2718,7 +2606,7 @@ async function validateTeam({
     // This means Period 1 validation with clean slate - no ownership checks
     ownership = null;
   } else {
-    // Period 2 Excel removed — no ownership check
+    // No previous-phase ownership source was provided for this validation path.
     ownership = null;
   }
 
@@ -2734,7 +2622,7 @@ async function validateTeam({
           .sort((left, right) => left.localeCompare(right))
           .join(", ");
         errors.push(
-          `Vaihtosääntö rikki: period 3 joukkueessa pitää vaihtaa vähintään 2 pelaajaa period 2:een verrattuna (nyt vaihdettu ${changedCount}). Samana pysyneet: ${unchangedList}`
+          `Vaihtosääntö rikki: Stanley Cup -joukkueessa pitää vaihtaa vähintään 2 pelaajaa aiempaan rosteriin verrattuna (nyt vaihdettu ${changedCount}). Samana pysyneet: ${unchangedList}`
         );
       }
     }
@@ -2747,13 +2635,13 @@ async function validateTeam({
       if (!owners.has(participantName)) {
         const ownerNames = Array.from(owners.values()).sort((a, b) => a.localeCompare(b));
         errors.push(
-          `Omistussääntö rikki: ${player.playerName} (${player.teamAbbrev}) oli period 2:ssa osallistujalla ${ownerNames.join(", ")}, ei ${participantName}`
+          `Omistussääntö rikki: ${player.playerName} (${player.teamAbbrev}) oli aiemmassa rosterissa osallistujalla ${ownerNames.join(", ")}, ei ${participantName}`
         );
       }
     }
   }
 
-  const ranking = await buildPeriod3RankingData({
+  const ranking = await buildScRankingData({
     fileName: competitionType || "",
     seasonId,
     fromDate: rankingFrom,
@@ -2828,8 +2716,8 @@ async function validateTeam({
 
   if (goalieRanks.length === 2) {
     const goalieRankSum = goalieRanks[0] + goalieRanks[1];
-    if (goalieRankSum < 30) {
-      errors.push(`Maalivahtien rank-summa liian pieni: ${goalieRankSum} (min 30)`);
+    if (goalieRankSum < 29) {
+      errors.push(`Maalivahtien rank-summa liian pieni: ${goalieRankSum} (min 29)`);
     }
   } else if (selectedGoalies.length === 2) {
     warnings.push("Maalivahtien rank-summaa ei voitu varmistaa täysin, koska rankingosuma puuttuu");
@@ -2862,7 +2750,7 @@ function buildCompareIndexes(compareItems) {
   const byLastAndInitial = new Map();
 
   for (const item of compareItems ?? []) {
-    if (item?.status !== "ok") {
+    if (item?.status === "fetch_error") {
       continue;
     }
 
@@ -2958,7 +2846,7 @@ function pickTipsenTeamCandidate(players, parsedCell) {
   return fuzzyCandidates[0]?.candidate ?? null;
 }
 
-async function resolveTipsenLiveSnapshot({ parsedCell, seasonId, compareDate, teamCache, snapshotCache }) {
+async function resolveTipsenLiveSnapshot({ parsedCell, seasonId, compareDate, teamCache, snapshotCache, gameTypeId = 2 }) {
   const cacheKey = `${parsedCell.teamAbbrev}|${parsedCell.lastNameNormalized}|${parsedCell.firstInitial}`;
   if (snapshotCache.has(cacheKey)) {
     return snapshotCache.get(cacheKey);
@@ -2985,7 +2873,7 @@ async function resolveTipsenLiveSnapshot({ parsedCell, seasonId, compareDate, te
   try {
     const [landing, gameLogPayload] = await Promise.all([
       fetchJsonDirect(`/player/${candidate.playerId}/landing`),
-      fetchJsonDirect(`/player/${candidate.playerId}/game-log/${seasonId}/2`),
+      fetchJsonDirect(`/player/${candidate.playerId}/game-log/${seasonId}/${gameTypeId}`),
     ]);
 
     const gameLog = Array.isArray(gameLogPayload?.gameLog) ? gameLogPayload.gameLog : [];
@@ -3392,13 +3280,14 @@ async function callMcpTool(name, args) {
   throw new Error(`Failed MCP tool call: ${name}`);
 }
 
-function extractSeasonStats(playerLanding, seasonId) {
+function extractSeasonStats(playerLanding, seasonId, gameTypeId = 2) {
   const requested = Number.parseInt(String(seasonId), 10);
   const seasonRow = (playerLanding.seasonTotals ?? []).find(
-    (row) => row?.season === requested && row?.gameTypeId === 2 && row?.leagueAbbrev === "NHL"
+    (row) => row?.season === requested && row?.gameTypeId === gameTypeId && row?.leagueAbbrev === "NHL"
   );
 
-  const featured = playerLanding?.featuredStats?.regularSeason?.subSeason;
+  const featuredBranch = gameTypeId === 3 ? "playoffs" : "regularSeason";
+  const featured = playerLanding?.featuredStats?.[featuredBranch]?.subSeason;
   const featuredSeason = playerLanding?.featuredStats?.season;
 
   if (seasonRow) {
@@ -3440,21 +3329,12 @@ function sumGoalieFantasyPoints(games) {
   return (games ?? []).reduce((sum, game) => sum + getGoalieGameFantasyPoints(game), 0);
 }
 
-async function hasPeriod3RosterSource() {
-  return hasTemporaryPeriod3Rosters();
-}
-
-async function hasAnyRosterSource() {
-  try {
-    await resolveActiveTemporaryRosterSource(getHelsinkiTodayDate());
-    return true;
-  } catch {
-    return false;
-  }
+async function hasScRosterSource() {
+  return hasScRosters();
 }
 
 async function isNyheterSnapshotCollectionPaused() {
-  return !(await hasAnyRosterSource());
+  return !(await hasScRosterSource());
 }
 
 async function resolveTeamMap() {
@@ -3837,7 +3717,7 @@ app.use(requireAdminAccess);
 app.use(express.static(path.join(rootDir, "public"), { index: false }));
 
 app.get("/", (_req, res) => {
-  res.sendFile(path.join(rootDir, "public", "lagen.html"));
+  res.sendFile(path.join(rootDir, "public", "stallning.html"));
 });
 
 app.get("/api/health", (_req, res) => {
@@ -4226,7 +4106,7 @@ app.post("/api/team-validator", teamValidatorRateLimiter, async (req, res) => {
   try {
     const participantName = String(req.body?.participantName ?? "").trim();
     const rosterText = String(req.body?.rosterText ?? "").trim();
-    const seasonId = String(req.body?.seasonId ?? PERIOD3_VALIDATOR_SEASON_ID).trim();
+    const seasonId = String(req.body?.seasonId ?? SC_VALIDATOR_SEASON_ID).trim();
     const competitionType = normalizeCompetitionType(req.body?.competitionType ?? getActiveCompetitionType());
     if (!competitionType) {
       res.status(400).json({
@@ -4271,7 +4151,7 @@ app.post("/api/team-validator", teamValidatorRateLimiter, async (req, res) => {
     // Load previous roster data if provided
     let previousRosterData = null;
     if (previousRosterFileProvided && previousRosterFile === "period1-rosters.json") {
-      const loaded = await loadTemporaryPeriod1Rosters();
+      const loaded = await loadScRosters();
       if (loaded?.participants) {
         previousRosterData = loaded.participants;
       }
@@ -4288,12 +4168,12 @@ app.post("/api/team-validator", teamValidatorRateLimiter, async (req, res) => {
       previousRosterFile: previousRosterFileProvided ? previousRosterFile : undefined,
     });
 
-    // If validation passes, save to Period 1 rosters
-    let savedToPeriod1 = false;
+    // If validation passes, save to the SC roster file.
+    let savedToScRosters = false;
     if (result?.status === "PASS") {
-      const parsed = parsePeriod3RosterText(rosterText);
+      const parsed = parseScRosterText(rosterText);
       if (Array.isArray(parsed?.players)) {
-        savedToPeriod1 = await savePeriod1Roster(participantName, parsed.players);
+        savedToScRosters = await saveScRoster(participantName, parsed.players);
       }
     }
 
@@ -4301,7 +4181,7 @@ app.post("/api/team-validator", teamValidatorRateLimiter, async (req, res) => {
       ok: true,
       result: {
         ...result,
-        savedToPeriod1,
+        savedToScRosters,
       },
     });
   } catch (error) {
@@ -4340,7 +4220,8 @@ app.get("/api/players-stats-compare", playersCompareRateLimiter, async (req, res
       return;
     }
 
-    const rosterSource = await resolveActiveTemporaryRosterSource(compareDate);
+    const rosterSourceDate = getSetting("compareDate", DEFAULT_COMPARE_DATE);
+    const rosterSource = await resolveActiveRosterSource(rosterSourceDate);
     const dataWindowKey = getHelsinkiDateWindowKey();
     const cacheKey = [RESPONSE_CACHE_VERSION, seasonId, rosterSource.sourceKey, compareDate, dataWindowKey].join("|");
     const cachedResponse = forceRefresh ? null : getCachedCompareResponse(cacheKey);
@@ -4360,6 +4241,9 @@ app.get("/api/players-stats-compare", playersCompareRateLimiter, async (req, res
 
     const { totalRows, resolvedPlayers, unresolvedItems } = await resolvePlayersFromRosterParticipants(rosterSource.participants);
 
+    const compareCompetitionType = getActiveCompetitionType();
+    const compareGameTypeId = getGameTypeId(compareCompetitionType);
+
     const resolvedItems = await runWithConcurrency(resolvedPlayers, PLAYER_FETCH_CONCURRENCY, async (player) => {
       try {
         let landing;
@@ -4367,15 +4251,15 @@ app.get("/api/players-stats-compare", playersCompareRateLimiter, async (req, res
 
         if (useMcpBridge) {
           landing = await fetchJson(`/player/${player.playerId}/landing`);
-          gameLogPayload = await fetchJson(`/player/${player.playerId}/game-log/${seasonId}/2`);
+          gameLogPayload = await fetchJson(`/player/${player.playerId}/game-log/${seasonId}/${compareGameTypeId}`);
         } else {
           [landing, gameLogPayload] = await Promise.all([
             fetchJson(`/player/${player.playerId}/landing`),
-            fetchJson(`/player/${player.playerId}/game-log/${seasonId}/2`),
+            fetchJson(`/player/${player.playerId}/game-log/${seasonId}/${compareGameTypeId}`),
           ]);
         }
 
-        const stats = extractSeasonStats(landing, seasonId);
+        const stats = extractSeasonStats(landing, seasonId, compareGameTypeId);
         const gameLog = Array.isArray(gameLogPayload?.gameLog) ? gameLogPayload.gameLog : [];
         const gamesUntilDate = gameLog.filter((game) => String(game.gameDate) <= compareDate);
         const isGoalie =
