@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stanley cup playoffs</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --text-strong: #0d2a1a;
+        --text-muted: #3c6648;
+        --card-bg: #ffffff;
+        --card-border: #b8e4ca;
+        --line-color: #8dc3a2;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: Inter, Arial, sans-serif;
+        margin: 0;
+        background: radial-gradient(circle at top, #f0fbf4 0%, #e3f5ea 45%, #dbf0e4 100%);
+        color: var(--text-strong);
+      }
+
+      .page {
+        max-width: 1460px;
+        margin: 0 auto;
+        padding: 20px 16px 30px;
+      }
+
+      .top-nav {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .top-nav a {
+        text-decoration: none;
+        border: 1px solid #b4ddc2;
+        padding: 7px 12px;
+        border-radius: 999px;
+        color: #173e24;
+        font-size: 13px;
+        font-weight: 600;
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .top-nav a.active {
+        background: linear-gradient(135deg, #0d3220 0%, #164028 100%);
+        color: #fff;
+        border-color: #123d24;
+      }
+
+      .top-nav a.admin-link {
+        display: inline-flex;
+      }
+
+      .hero {
+        background: linear-gradient(145deg, #ffffff 0%, #f2fcf5 100%);
+        border-radius: 18px;
+        border: 1px solid #b8e4ca;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+      }
+
+      .hero-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -0.01em;
+      }
+
+      .meta {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .meta-chip {
+        border: 1px solid #c2e8d4;
+        background: #f0fbf4;
+        color: var(--text-muted);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .bracket-wrap {
+        overflow-x: auto;
+        padding: 2px 0 8px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .scroll-hint {
+        display: none;
+        text-align: center;
+        font-size: 12px;
+        color: #5f8067;
+        font-weight: 600;
+        margin-bottom: 8px;
+        letter-spacing: 0.04em;
+      }
+
+      .mobile-bracket {
+        display: none;
+      }
+
+      .bracket-board {
+        --card-width: 170px;
+        --row-height: 88px;
+        --col-gap: 18px;
+        min-width: 1220px;
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr 220px 1fr;
+        gap: 12px;
+        padding: 9px;
+        border-radius: 18px;
+        border: 1px solid #b8e4ca;
+        background: linear-gradient(180deg, #f8fefb 0%, #eef9f3 100%);
+      }
+
+      .conference {
+        position: absolute;
+        top: 14px;
+        font-size: 11px;
+        letter-spacing: 0.09em;
+        color: #3a6247;
+        font-weight: 700;
+        text-transform: uppercase;
+        z-index: 3;
+      }
+
+      .conference.west-label {
+        left: 22px;
+      }
+
+      .conference.east-label {
+        right: 22px;
+      }
+
+      .side-grid {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(3, var(--card-width));
+        grid-template-rows: repeat(8, var(--row-height));
+        column-gap: var(--col-gap);
+        row-gap: 0;
+        padding-top: 18px;
+      }
+
+      .east-side {
+        justify-self: end;
+      }
+
+      .center-lane {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding-top: 16px;
+      }
+
+      .final-slot {
+        width: 200px;
+        min-height: 220px;
+        border-radius: 14px;
+        border: 1px solid #9bcfb0;
+        background: linear-gradient(180deg, #ffffff 0%, #f1fbf5 100%);
+        box-shadow: inset 0 0 0 1px rgba(17, 64, 34, 0.05);
+        padding: 11px;
+        display: grid;
+        gap: 8px;
+        align-content: center;
+      }
+
+      .final-tag {
+        text-align: center;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #355a42;
+        font-weight: 800;
+      }
+
+      .final-cup {
+        text-align: center;
+        font-size: 34px;
+        line-height: 1;
+      }
+
+      .final-note {
+        text-align: center;
+        color: #4a7156;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .final-matchup {
+        border: 1px solid #b7dfc5;
+        border-radius: 10px;
+        padding: 6px;
+        background: #f8fefb;
+      }
+
+      .series-card {
+        width: var(--card-width);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        padding: 6px 8px;
+        background: var(--card-bg);
+        align-self: center;
+        z-index: 4;
+      }
+
+      .series-card.pending {
+        min-height: 102px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f4fcf7;
+        color: #76947e;
+      }
+
+      .series-round-tag {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: #3f6a4d;
+        margin-bottom: 4px;
+      }
+
+      .team-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 0;
+        border-bottom: 1px solid #d3ebdd;
+      }
+
+      .team-row:last-of-type {
+        border-bottom: none;
+      }
+
+      .logo {
+        width: 16px;
+        height: 16px;
+        object-fit: contain;
+      }
+
+      .team-block {
+        display: grid;
+        gap: 1px;
+      }
+
+      .team-abbrev {
+        font-size: 32px;
+        line-height: 1;
+      }
+
+      .team-main {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+      }
+
+      .team-name {
+        font-size: 14px;
+        color: #183d28;
+        font-weight: 800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .team-seed {
+        font-size: 10px;
+        color: #5f8067;
+        font-weight: 700;
+      }
+
+      .wins {
+        font-size: 30px;
+        font-weight: 900;
+        color: #123e24;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+      }
+
+      .team-row.leading .team-name,
+      .team-row.leading .wins {
+        color: #0d3220;
+      }
+
+      .placeholder-core {
+        display: grid;
+        gap: 4px;
+        text-align: center;
+        font-weight: 700;
+        color: #6b8b73;
+      }
+
+      .placeholder-badge {
+        font-size: 16px;
+      }
+
+      .series-letter {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #4d7358;
+      }
+
+      .connector-layer {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 2;
+      }
+
+      .column-tag {
+        position: absolute;
+        top: 0;
+        font-size: 10px;
+        letter-spacing: 0.08em;
+        color: #567b61;
+        text-transform: uppercase;
+        font-weight: 700;
+      }
+
+      .west-side .tag-r1 {
+        left: 2px;
+      }
+
+      .west-side .tag-r2 {
+        left: calc(var(--card-width) + var(--col-gap) + 2px);
+      }
+
+      .west-side .tag-cf {
+        left: calc((var(--card-width) + var(--col-gap)) * 2 + 2px);
+      }
+
+      .east-side .tag-r1 {
+        right: 2px;
+      }
+
+      .east-side .tag-r2 {
+        right: calc(var(--card-width) + var(--col-gap) + 2px);
+      }
+
+      .east-side .tag-cf {
+        right: calc((var(--card-width) + var(--col-gap)) * 2 + 2px);
+      }
+
+      .series-status {
+        margin-top: 4px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #5b7e64;
+      }
+
+      @media (max-width: 900px) {
+        .page {
+          padding: 14px 12px 26px;
+        }
+
+        .top-nav a.admin-link {
+          display: none;
+        }
+
+        .hero {
+          padding: 14px;
+        }
+
+        .hero-head {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        h1 {
+          font-size: 28px;
+        }
+
+        .bracket-board {
+          min-width: 1080px;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .scroll-hint {
+          display: block;
+        }
+
+        .mobile-bracket {
+          display: none !important;
+        }
+
+        .bracket-board {
+          --card-width: 108px;
+          --row-height: 70px;
+          --col-gap: 6px;
+          min-width: 720px;
+          grid-template-columns: 1fr 140px 1fr;
+          gap: 6px;
+          padding: 6px;
+        }
+
+        .side-grid {
+          grid-template-rows: repeat(8, var(--row-height));
+          padding-top: 14px;
+        }
+
+        .series-card {
+          border-radius: 8px;
+          padding: 4px 5px;
+        }
+
+        .series-card.pending {
+          min-height: 72px;
+        }
+
+        .team-name {
+          font-size: 10px;
+        }
+
+        .team-seed {
+          font-size: 8px;
+        }
+
+        .wins {
+          font-size: 20px;
+        }
+
+        .logo {
+          width: 12px;
+          height: 12px;
+        }
+
+        .series-round-tag {
+          font-size: 8px;
+          margin-bottom: 2px;
+        }
+
+        .series-letter,
+        .series-status {
+          font-size: 8px;
+        }
+
+        .team-row {
+          gap: 4px;
+          padding: 2px 0;
+        }
+
+        .final-slot {
+          width: 140px;
+          min-height: 160px;
+          padding: 8px;
+        }
+
+        .final-tag {
+          font-size: 10px;
+        }
+
+        .final-cup {
+          font-size: 24px;
+        }
+
+        .final-note {
+          font-size: 9px;
+        }
+
+        .conference {
+          font-size: 9px;
+          top: 8px;
+        }
+
+        .column-tag {
+          font-size: 8px;
+        }
+
+        .west-side .tag-r2 {
+          left: calc(var(--card-width) + var(--col-gap) + 2px);
+        }
+
+        .west-side .tag-cf {
+          left: calc((var(--card-width) + var(--col-gap)) * 2 + 2px);
+        }
+
+        .east-side .tag-r2 {
+          right: calc(var(--card-width) + var(--col-gap) + 2px);
+        }
+
+        .east-side .tag-cf {
+          right: calc((var(--card-width) + var(--col-gap)) * 2 + 2px);
+        }
+
+        h1 {
+          font-size: 22px;
+        }
+      }
+
+      @media (max-width: 430px) {
+        .page {
+          padding: 12px 10px 22px;
+        }
+
+        .hero {
+          border-radius: 16px;
+          padding: 14px;
+        }
+
+        h1 {
+          font-size: 26px;
+        }
+
+        .meta {
+          gap: 6px;
+          margin-top: 10px;
+        }
+
+        .meta-chip {
+          font-size: 11px;
+          padding: 5px 9px;
+        }
+      }
+
+      /* === Mobile bracket view === */
+      .mobile-bracket {
+        display: none;
+      }
+
+
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <nav class="top-nav" aria-label="Päänavigaatio">
+        <a href="/stallning.html">Ställningen</a>
+        <a href="/lagen.html">Lagen</a>
+        <a href="/playoffs.html" class="active">Playoffs</a>
+        <a href="/admin.html" class="admin-link">Admin</a>
+      </nav>
+
+      <section class="hero">
+        <div class="hero-head">
+          <h1>Stanley cup playoffs</h1>
+        </div>
+        <div class="meta">
+          <div id="seasonChip" class="meta-chip"></div>
+          <div id="statusChip" class="meta-chip"></div>
+        </div>
+      </section>
+
+      <p class="scroll-hint">→ vaakasuora skrollaus →</p>
+
+      <div class="bracket-wrap">
+        <section id="bracketBoard" class="bracket-board" aria-label="Playoff bracket">
+          <div class="conference west-label">Western</div>
+          <div class="conference east-label">Eastern</div>
+
+          <section id="westGrid" class="side-grid west-side">
+            <div class="column-tag tag-r1">R1</div>
+            <div class="column-tag tag-r2">R2</div>
+            <div class="column-tag tag-cf">CF</div>
+          </section>
+
+          <section class="center-lane">
+            <article id="finalSlot" class="final-slot">
+              <div class="final-tag">Final</div>
+              <div class="final-cup">🏆</div>
+              <div id="finalContent" class="final-note">Stanley Cup Final</div>
+            </article>
+          </section>
+
+          <section id="eastGrid" class="side-grid east-side">
+            <div class="column-tag tag-r1">R1</div>
+            <div class="column-tag tag-r2">R2</div>
+            <div class="column-tag tag-cf">CF</div>
+          </section>
+
+          <svg id="connectorLayer" class="connector-layer" preserveAspectRatio="none"></svg>
+        </section>
+      </div>
+    </div>
+
+    <script type="module" src="/playoffs.js"></script>
+  </body>
+</html>

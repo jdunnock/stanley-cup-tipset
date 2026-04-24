@@ -134,10 +134,23 @@ Hyväksymiskriteerit:
 - Iteraatio 2 painopiste: pidempi avausnarratiivi (myös häntäpään taistelu), kevyt huumorisävy sekä visuaaliset draamanostot ilman uusia backend-riippuvuuksia
 - Oikean datan keruuta varten lisätään erillinen snapshot-polku, joka tallettaa Nyheter-viikkosisällön raakakandidaatit SQLiteen (`nyheter_snapshots`) ilman muutoksia UI:n julkiseen lukijasisältöön
 
+### 3.3.2 Stanley cup playoffs -näkymä
+- Uusi erillissivu: `playoffs.html` + `playoffs.js`
+- Sivu näkyy päänavigaatiossa kolmantena sivuna (`Ställningen`, `Lagen`, `Playoffs`)
+- Ulkoasu seuraa NHL playoffs bracket -näkymän rakennetta: round-kohtaiset sarjakortit ja joukkueiden logot
+- Jokaisessa sarjassa näytetään tämänhetkinen sarjatilanne (`wins-wins`) sekä johtotilanne (`Leads X-Y` / `Series tied X-X`)
+- Data haetaan backendin proxyn kautta, jotta selaimen CORS-rajoitteet eivät estä NHL-datan käyttöä
+- Sivu toimii desktopilla ja mobiilissa (horisontaalinen scroll round-sarakkeille)
+- Bracket käyttää kierroskohtaisia slotteja ja yhdysviivoja (`connector lines`), jotta seuraavan kierroksen vastinparit hahmottuvat visuaalisesti kuten NHL:n alkuperäisessä bracketissa
+- Näkymä käyttää tummaa, peilattua NHL-tyylistä asettelua (West vasen, East oikea, Final keskellä), jotta eteneminen R1 -> R2 -> Conference Final -> Final on silmäiltävissä yhdellä näkymällä
+- Bracket-elementit pidetään kompakteina (kortit ja pistefontit pienemmät), jotta koko puu mahtuu paremmin näkyviin ilman raskasta ilmettä
+- Värimaailma seuraa sovelluksen peruslinjaa (vaalea vihreä/valkoinen), vaikka bracket-rakenne on NHL-tyylinen
+
 ### 3.4 API-endpointit
 - GET /api/players-stats-compare
   - Endpointilla on rate limit (oletus: 25 pyyntöä / 60s per client IP; admin-auth ja loopback-kutsut ohittavat rajan)
 - GET /api/tipsen-summary
+- GET /api/playoff-bracket
 - GET /api/nyheter/snapshots
 - GET/POST /api/nyheter/collect
 - GET /api/data-readiness
@@ -286,6 +299,14 @@ Kun käytät PR:ää, käytä tätä:
 - Rollback plan
 
 ## 7. Muutosloki
+
+- 2026-04-24
+  - Lisätty uusi `Stanley cup playoffs` -sivu (`playoffs.html` + `playoffs.js`) NHL playoff bracket -tyylisellä round-rakenteella
+  - Lisätty backend-endpoint `GET /api/playoff-bracket`, joka proxyaa NHL playoff bracket -datan ja palauttaa round-kohtaisen sarjarakenteen
+  - Lisätty `Playoffs`-navigaatiolinkki sivuille `Ställningen`, `Lagen`, `Admin` ja `Nyheter`
+  - Päivitetty playoffs-näkymän visualisointi NHL-bracketin kaltaiseksi slotitetulla puunäkymällä ja kierrosten välisillä yhdysviivoilla
+  - Uudistettu playoffs-näkymän ulkoasu peilatuksi dark-theme bracketiksi NHL-referenssin suuntaan (konferenssipuoliskot + keskifinaali)
+  - Viilattu playoffs-näkymä kompaktimmaksi ja päivitetty väripaletti sovelluksen vakio-vihreään/vaaleaan ilmeeseen käyttäjäpalautteen perusteella
 
 - 2026-04-19
   - Vaihdettu oletussivu: `/` ohjaa nyt `stallning.html`:ään (aiemmin `lagen.html`)

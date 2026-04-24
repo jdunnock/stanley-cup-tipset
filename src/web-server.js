@@ -4384,6 +4384,111 @@ app.get("/api/tipsen-summary", async (req, res) => {
   }
 });
 
+app.get("/api/playoff-bracket", async (req, res) => {
+  try {
+    const yearInput = String(req.query.year ?? "").trim();
+    const seasonIdInput = String(req.query.seasonId ?? "").trim();
+
+    if (yearInput && !/^\d{4}$/.test(yearInput)) {
+      res.status(400).json({ error: "year must be a 4-digit string, e.g. 2026" });
+      return;
+    }
+
+    if (seasonIdInput && !/^\d{8}$/.test(seasonIdInput)) {
+      res.status(400).json({ error: "seasonId must be an 8-digit string, e.g. 20252026" });
+      return;
+    }
+
+    const playoffYear = Number.parseInt(
+      yearInput || (seasonIdInput ? seasonIdInput.slice(4) : String(new Date().getFullYear())),
+      10
+    );
+    const seasonId = seasonIdInput || `${playoffYear - 1}${playoffYear}`;
+
+    const [bracketPayload, carouselPayload] = await Promise.all([
+      fetchJsonDirect(`/playoff-bracket/${playoffYear}`),
+      fetchJsonDirect(`/playoff-series/carousel/${seasonId}`),
+    ]);
+
+    const carouselSeriesByLetter = new Map();
+    for (const round of carouselPayload?.rounds ?? []) {
+      for (const series of round?.series ?? []) {
+        const key = String(series?.seriesLetter ?? "").trim().toUpperCase();
+        if (key) {
+          carouselSeriesByLetter.set(key, series);
+        }
+      }
+    }
+
+    const groupedByRound = new Map();
+    for (const series of bracketPayload?.series ?? []) {
+      const seriesLetter = String(series?.seriesLetter ?? "").trim().toUpperCase();
+      const carouselSeries = carouselSeriesByLetter.get(seriesLetter);
+      const roundNumber = Number(series?.playoffRound ?? carouselSeries?.roundNumber ?? 0);
+      const roundLabel = String(series?.seriesTitle ?? "").trim() || `Round ${roundNumber || "-"}`;
+      const neededToWin = Number(carouselSeries?.neededToWin ?? 4);
+
+      const item = {
+        seriesLetter,
+        roundNumber,
+        roundLabel,
+        seriesAbbrev: String(series?.seriesAbbrev ?? "").trim(),
+        topSeedRank: Number(series?.topSeedRank ?? 0),
+        bottomSeedRank: Number(series?.bottomSeedRank ?? 0),
+        topSeedRankAbbrev: String(series?.topSeedRankAbbrev ?? "").trim(),
+        bottomSeedRankAbbrev: String(series?.bottomSeedRankAbbrev ?? "").trim(),
+        topSeedWins: Number(series?.topSeedWins ?? carouselSeries?.topSeed?.wins ?? 0),
+        bottomSeedWins: Number(series?.bottomSeedWins ?? carouselSeries?.bottomSeed?.wins ?? 0),
+        neededToWin,
+        seriesUrl: String(series?.seriesUrl ?? "").trim(),
+        seriesHref: String(series?.seriesUrl ?? "").trim()
+          ? `https://www.nhl.com${String(series?.seriesUrl ?? "").trim()}`
+          : "",
+        topSeedTeam: {
+          id: Number(series?.topSeedTeam?.id ?? 0),
+          abbrev: String(series?.topSeedTeam?.abbrev ?? "").trim(),
+          name: String(series?.topSeedTeam?.name?.default ?? "").trim(),
+          commonName: String(series?.topSeedTeam?.commonName?.default ?? "").trim(),
+          logo: String(series?.topSeedTeam?.logo ?? carouselSeries?.topSeed?.logo ?? "").trim(),
+        },
+        bottomSeedTeam: {
+          id: Number(series?.bottomSeedTeam?.id ?? 0),
+          abbrev: String(series?.bottomSeedTeam?.abbrev ?? "").trim(),
+          name: String(series?.bottomSeedTeam?.name?.default ?? "").trim(),
+          commonName: String(series?.bottomSeedTeam?.commonName?.default ?? "").trim(),
+          logo: String(series?.bottomSeedTeam?.logo ?? carouselSeries?.bottomSeed?.logo ?? "").trim(),
+        },
+      };
+
+      if (!groupedByRound.has(roundNumber)) {
+        groupedByRound.set(roundNumber, []);
+      }
+      groupedByRound.get(roundNumber).push(item);
+    }
+
+    const rounds = Array.from(groupedByRound.entries())
+      .sort((left, right) => left[0] - right[0])
+      .map(([roundNumber, series]) => ({
+        roundNumber,
+        roundLabel: series[0]?.roundLabel || `Round ${roundNumber}`,
+        series: [...series].sort((left, right) => left.seriesLetter.localeCompare(right.seriesLetter)),
+      }));
+
+    res.json({
+      seasonId,
+      playoffYear,
+      currentRound: Number(carouselPayload?.currentRound ?? 0),
+      bracketLogo: String(bracketPayload?.bracketLogo ?? "").trim(),
+      bracketTitle: String(bracketPayload?.bracketTitle?.default ?? "").trim(),
+      bracketSubTitle: String(bracketPayload?.bracketSubTitle?.default ?? "").trim(),
+      rounds,
+      fetchedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 function assertStartupSecurityConfig() {
   const hasAdminUser = ADMIN_BASIC_USER.length > 0;
   const hasAdminPass = ADMIN_BASIC_PASS.length > 0;
