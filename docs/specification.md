@@ -111,7 +111,7 @@ Hyväksymiskriteerit:
   - `Totalställning inklusive Stanley Cup`
 - UI:ssa käytetään Stanley Cup -vaiheessa lyhennettä `SC` vanhan `P3`-otsikon sijaan, jotta näkyvä sanasto vastaa nykyistä kilpailua vaikka pisteasteikko periytyy vanhan 3-periodisen mallin period 3:sta.
 
-### 3.3.1 Nyheter-näkymä (pilot, low-risk)
+### 3.3.1 Nyheter-näkymä (julkaistu 2026-04-25)
 - Uusi ruotsinkielinen `Nyheter`-sivu tehdään ensin pilot-versiona (`nyheter.html` + `nyheter.js`)
 - Nyheter-sivu lukee ensisijaisesti uusimman snapshotin endpointista `GET /api/nyheter/snapshots` (period2 + aktiivinen seasonId), jotta julkaistu näkymä vastaa tuotannon tuoreinta dataa
 - Jos snapshot-data ei ole saatavilla, sivu voi näyttää fallback-mockin ilman että muu sovelluspolku rikkoutuu
