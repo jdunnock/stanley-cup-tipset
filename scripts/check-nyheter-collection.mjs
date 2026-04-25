@@ -1,4 +1,4 @@
-const baseUrl = String(process.env.BASE_URL || "https://nhl-stats-production.up.railway.app").replace(/\/$/, "");
+const baseUrl = String(process.env.BASE_URL || "https://stanley-cup-tipset-production.up.railway.app").replace(/\/$/, "");
 const seasonId = String(process.env.SEASON_ID || "20252026");
 const snapshotsLimit = Number.parseInt(String(process.env.SNAPSHOTS_LIMIT || "14"), 10);
 

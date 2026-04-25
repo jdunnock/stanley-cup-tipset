@@ -20,6 +20,7 @@ Päätulokset:
 - Persistenssi: SQLite (app-settings + response cache) + rosteri-JSONit
 - UI: staattiset sivut public-kansiossa
 - Deploy: Railway
+- Kanoninen tuotantodomain: `https://stanley-cup-tipset-production.up.railway.app` (vanhaa `nhl-stats-production.up.railway.app` -domainia ei käytetä operatiivisiin komentoihin)
 
 Pääsijainnit:
 - Backend: src/web-server.js

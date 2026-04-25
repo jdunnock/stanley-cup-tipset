@@ -1,6 +1,6 @@
 # Stanley Cup Tipset + Web UI
 
-Stanley Cup tipping project based on nhl-stats baseline, with playoff-focused rules and data windows.
+Stanley Cup tipping project with playoff-focused rules and data windows.
 
 ## Project docs
 
@@ -249,7 +249,7 @@ Tämä tulostaa mm.:
 Tarvittaessa voit kohdistaa checkin eri ympäristöön:
 
 ```bash
-BASE_URL="https://nhl-stats-production.up.railway.app" \
+BASE_URL="https://stanley-cup-tipset-production.up.railway.app" \
 SEASON_ID="20252026" \
 npm run nyheter:check
 ```
@@ -258,17 +258,17 @@ npm run nyheter:check
 
 ```bash
 # 1) Precheck: health + scheduler response
-curl -sS https://nhl-stats-production.up.railway.app/api/health
+curl -sS https://stanley-cup-tipset-production.up.railway.app/api/health
 curl -sS -H "x-cron-token: $CRON_JOB_TOKEN" \
-  "https://nhl-stats-production.up.railway.app/api/cron/daily-refresh"
+  "https://stanley-cup-tipset-production.up.railway.app/api/cron/daily-refresh"
 
 # 2) Gate-check (odotettu blokkireason ilman Stanley Cup -rosteria 16.3 aamusta eteenpäin)
 curl -sS -H "x-cron-token: $CRON_JOB_TOKEN" \
-  "https://nhl-stats-production.up.railway.app/api/cron/daily-refresh?date=2026-03-15"
+  "https://stanley-cup-tipset-production.up.railway.app/api/cron/daily-refresh?date=2026-03-15"
 
 # 3) Go-live jälkeen: pakotettu ajo uuden Stanley Cup -rosterin kanssa
 curl -sS -H "x-cron-token: $CRON_JOB_TOKEN" \
-  "https://nhl-stats-production.up.railway.app/api/cron/daily-refresh?force=true"
+  "https://stanley-cup-tipset-production.up.railway.app/api/cron/daily-refresh?force=true"
 ```
 
 ## Admin access protection
@@ -301,7 +301,7 @@ Esimerkki:
 
 ```bash
 curl -u "$ADMIN_BASIC_USER:$ADMIN_BASIC_PASS" \
-  "https://nhl-stats-production.up.railway.app/api/tipsen-summary?debugCache=1"
+  "https://stanley-cup-tipset-production.up.railway.app/api/tipsen-summary?debugCache=1"
 ```
 
 ## Quick test
@@ -329,9 +329,9 @@ npm run test:player -- 8478420 20252026
 ```json
 {
   "mcpServers": {
-    "nhl-stats": {
+    "stanley-cup-tipset": {
       "command": "node",
-      "args": ["/absolute/path/to/nhl-stats/src/server.js"]
+      "args": ["/absolute/path/to/stanley-cup-tipset/src/server.js"]
     }
   }
 }

@@ -3726,7 +3726,7 @@ app.get("/api/health", (_req, res) => {
 
 app.get("/api/version", (_req, res) => {
   res.json({
-    name: "nhl-stats",
+    name: "stanley-cup-tipset",
     commitSha,
     buildTimestamp,
     appBootedAt,

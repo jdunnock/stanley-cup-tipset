@@ -12,7 +12,7 @@ Tämän rutiinin tarkoitus on varmistaa, että lauantain uutiskirjettä varten k
 ## 1) Aja viikkotsekki
 
 ```bash
-BASE_URL="https://nhl-stats-production.up.railway.app" \
+BASE_URL="https://stanley-cup-tipset-production.up.railway.app" \
 SEASON_ID="20252026" \
 npm run nyheter:check
 ```
@@ -34,7 +34,7 @@ Aja tuotannossa manuaalinen keräys:
 ```bash
 curl -sS \
   -H "x-cron-token: $CRON_JOB_TOKEN" \
-  "https://nhl-stats-production.up.railway.app/api/nyheter/collect?seasonId=20252026"
+  "https://stanley-cup-tipset-production.up.railway.app/api/nyheter/collect?seasonId=20252026"
 ```
 
 Aja sen jälkeen viikkotsekki uudelleen.

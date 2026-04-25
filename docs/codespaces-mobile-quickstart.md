@@ -12,12 +12,12 @@ Tämä ohje tekee yhden asian: saat yhteyden tähän projektiin puhelimesta ja v
 ## 2) Ennen kuin aloitat
 
 - GitHub-tilillä Codespaces käytössä.
-- Repo näkyy GitHubissa: `jdunnock/nhl-stats`.
+- Repo näkyy GitHubissa: `jdunnock/stanley-cup-tipset`.
 - Copilot käytössä tilillä.
 
 ## 3) Käynnistys puhelimella
 
-1. Avaa GitHubissa repo `jdunnock/nhl-stats`.
+1. Avaa GitHubissa repo `jdunnock/stanley-cup-tipset`.
 2. Paina **Code** → **Codespaces** → **Create codespace on main**.
 3. Odota, että VS Code Web avautuu.
 4. Avaa Copilot Chat (chat-ikoni sivupalkista).
