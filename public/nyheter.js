@@ -7,39 +7,31 @@ const NYHETER_MODE_WEEKLY = "weekly";
 const fallbackNyheterData = {
   mode: NYHETER_MODE_PERIOD,
   isStanleyCupActive: false,
-  weekStart: "2026-03-09",
-  weekEnd: "2026-03-14",
-  leaderName: "Timmy",
-  leaderDeltaWeek: "+177",
+  weekStart: "",
+  weekEnd: "",
+  leaderName: "",
+  leaderDeltaWeek: "",
   spotlights: {
     leader: {
-      value: "Timmy",
-      sub: "Leder tabellen i senaste tillgängliga snapshot",
+      value: "–",
+      sub: "Data saknas – uppdatera sidan för att hämta senaste snapshot",
     },
     hot: {
-      value: "Kucherov (TBL)",
-      sub: "Stor poängimpact i senaste rapporten",
+      value: "–",
+      sub: "Data saknas",
     },
     bottom: {
-      value: "3 lag i botten",
-      sub: "Små marginaler i kampen om sista platserna",
+      value: "–",
+      sub: "Data saknas",
     },
   },
   leadSummary:
     "Nyheter laddades med fallback-data. Uppdatera sidan om du vill hämta den senaste snapshoten på nytt.",
-  risers: [
-    { playerName: "Kucherov (TBL)", deltaWeek: "+28", participant: "Mattias" },
-    { playerName: "Draisaitl (EDM)", deltaWeek: "+26", participant: "Fredrik" },
-    { playerName: "Dahlin (BUF)", deltaWeek: "+23", participant: "Joakim" },
-  ],
-  fallers: [
-    { playerName: "Crosby (PIT)", deltaWeek: "+2", participant: "Mattias" },
-    { playerName: "Morrissey (WPG)", deltaWeek: "+2", participant: "Joakim" },
-    { playerName: "Carlson (ANA)", deltaWeek: "+3", participant: "Henrik" },
-  ],
+  risers: [],
+  fallers: [],
   participantImpacts: [],
   injuryUpdates: [],
-  bottomBattleLead: "Bottenstriden är fortsatt jämn och avgörs på små marginaler.",
+  bottomBattleLead: "",
   bottomBattle: [],
   funNote: "",
 };
